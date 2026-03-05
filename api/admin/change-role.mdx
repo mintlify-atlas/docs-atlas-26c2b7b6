@@ -1,0 +1,147 @@
+---
+title: "Change User Role"
+api: "PATCH /api/admin/users/:id/role"
+description: "Toggle a user's admin status between admin and regular user"
+---
+
+## Authentication
+
+This endpoint requires:
+- Valid JWT token (via cookie)
+- Admin role (`isAdmin: true`)
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The MongoDB ObjectId of the user whose role should be changed
+</ParamField>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success message indicating the new role status
+</ResponseField>
+
+<ResponseField name="listing" type="object">
+  The updated user object (Note: field name is 'listing' in current implementation)
+  
+  <ResponseField name="_id" type="string">
+    User ID
+  </ResponseField>
+  
+  <ResponseField name="username" type="string">
+    Username
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    User email
+  </ResponseField>
+  
+  <ResponseField name="phone" type="string">
+    Phone number
+  </ResponseField>
+  
+  <ResponseField name="isAdmin" type="boolean">
+    Updated admin status
+  </ResponseField>
+  
+  <ResponseField name="avatar" type="object">
+    Avatar information
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="string">
+    Account creation timestamp
+  </ResponseField>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X PATCH "https://api.boundry.com/api/admin/users/64a1b2c3d4e5f6789abcdef1/role" \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const userId = '64a1b2c3d4e5f6789abcdef1';
+
+const response = await fetch(`/api/admin/users/${userId}/role`, {
+  method: 'PATCH',
+  credentials: 'include'
+});
+
+const data = await response.json();
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Success (Promoted to Admin)
+{
+  "message": "User is now an Admin",
+  "listing": {
+    "_id": "64a1b2c3d4e5f6789abcdef1",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "phone": "+923001234567",
+    "isAdmin": true,
+    "avatar": {
+      "url": "https://cloudinary.com/avatar.jpg",
+      "publicId": "avatars/user123"
+    },
+    "createdAt": "2024-01-15T08:30:00.000Z"
+  }
+}
+```
+
+```json 200 Success (Demoted to Regular User)
+{
+  "message": "User is now a Regular User",
+  "listing": {
+    "_id": "64a1b2c3d4e5f6789abcdef1",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "phone": "+923001234567",
+    "isAdmin": false,
+    "avatar": {
+      "url": "https://cloudinary.com/avatar.jpg",
+      "publicId": "avatars/user123"
+    },
+    "createdAt": "2024-01-15T08:30:00.000Z"
+  }
+}
+```
+
+```json 404 Not Found
+{
+  "message": "User not found"
+}
+```
+
+```json 400 Bad Request
+{
+  "message": "User admin status could not be updated :: Error details"
+}
+```
+
+```json 401 Unauthorized
+{
+  "message": "Token Authentication Failed :: Token not verified"
+}
+```
+
+```json 403 Forbidden
+{
+  "message": "Access Denied :: Admin permissions required"
+}
+```
+</ResponseExample>
+
+## Implementation Details
+
+- Toggles the user's `isAdmin` field using `!user.isAdmin`
+- No request body required - automatically toggles current status
+- Uses `user.save()` to persist the change
+- Returns a dynamic message based on the new admin status
+- Admins can promote regular users to admin or demote admins to regular users
+
+<Warning>
+  Be cautious when changing user roles. Ensure you don't accidentally demote yourself or remove all admin users from the system.
+</Warning>

@@ -1,0 +1,128 @@
+---
+title: "Get Current User Profile"
+api: "GET /api/users/profile"
+description: "Retrieve the authenticated user's profile information including listings count"
+---
+
+Retrieves the complete profile information for the currently authenticated user, including their username, email, phone, avatar, and associated listings.
+
+## Authentication
+
+<Warning>
+  This endpoint requires authentication. A valid JWT token must be provided in cookies.
+</Warning>
+
+The request must include a valid JWT token in the `jwt` cookie. The token is verified using the `authenticateToken` middleware.
+
+## Response
+
+<ResponseField name="_id" type="string" required>
+  User's unique identifier
+</ResponseField>
+
+<ResponseField name="username" type="string" required>
+  User's username (stored in lowercase)
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  User's email address (stored in lowercase)
+</ResponseField>
+
+<ResponseField name="phone" type="string" required>
+  User's phone number (E.164 format recommended)
+</ResponseField>
+
+<ResponseField name="avatar" type="object">
+  User's avatar information
+  
+  <Expandable title="avatar properties">
+    <ResponseField name="url" type="string">
+      Cloudinary URL for the user's avatar image
+    </ResponseField>
+    
+    <ResponseField name="publicId" type="string">
+      Cloudinary public ID for the avatar
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="listings" type="number">
+  Virtual field showing the count of listings owned by this user
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of when the user account was created
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.boundry.com/api/users/profile \
+  -H "Cookie: jwt=your_jwt_token_here"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.boundry.com/api/users/profile', {
+  method: 'GET',
+  credentials: 'include', // Include cookies
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+const profile = await response.json();
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success Response (200)
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "username": "johndoe",
+  "email": "john.doe@example.com",
+  "phone": "+1234567890",
+  "avatar": {
+    "url": "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v1234567890/avatars/user123.jpg",
+    "publicId": "avatars/user123"
+  },
+  "listings": 5,
+  "createdAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+```json User Not Found (404)
+{
+  "message": "User not found"
+}
+```
+
+```json Authentication Failed (401)
+{
+  "message": "Token Authentication Failed :: Token not verified"
+}
+```
+
+```json No Token Provided (401)
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+</ResponseExample>
+
+## Error Responses
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Profile retrieved successfully |
+| 401 | Authentication failed - invalid or missing token |
+| 404 | User not found in database |
+
+## Implementation Details
+
+This endpoint is implemented in `controllers/userController.js:5` as `getCurrentUserProfile`. It:
+
+1. Extracts the user ID from the authenticated token (set by `authenticateToken` middleware)
+2. Queries the database selecting only: `username`, `email`, `phone`, `avatar`
+3. Populates the `listings` virtual field to include the count of user's listings
+4. Returns the user object with all populated fields
+
+The password field is explicitly excluded from the response for security.

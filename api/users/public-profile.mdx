@@ -1,0 +1,151 @@
+---
+title: "Get Public User Profile"
+api: "GET /api/users/:id"
+description: "Retrieve public profile information for any user by their ID"
+---
+
+Retrieves publicly available profile information for any user. This endpoint does not require authentication and returns only non-sensitive information suitable for public display.
+
+## Authentication
+
+<Info>
+  This endpoint does NOT require authentication and can be accessed publicly.
+</Info>
+
+Unlike other user endpoints, this endpoint is intentionally public to allow viewing user profiles and their listings without authentication.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique MongoDB ObjectId of the user whose public profile you want to retrieve
+  
+  <Expandable title="format">
+    Must be a valid MongoDB ObjectId (24 character hexadecimal string)
+  </Expandable>
+</ParamField>
+
+## Response
+
+<ResponseField name="_id" type="string" required>
+  User's unique identifier
+</ResponseField>
+
+<ResponseField name="username" type="string" required>
+  User's username (lowercase)
+</ResponseField>
+
+<ResponseField name="avatar" type="object">
+  User's avatar information
+  
+  <Expandable title="avatar properties">
+    <ResponseField name="url" type="string">
+      Cloudinary URL for the user's avatar image
+    </ResponseField>
+    
+    <ResponseField name="publicId" type="string">
+      Cloudinary public ID for the avatar
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdAt" type="string" required>
+  ISO 8601 timestamp of when the user account was created
+</ResponseField>
+
+<ResponseField name="listings" type="number">
+  Virtual field showing the count of listings owned by this user
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET https://api.boundry.com/api/users/507f1f77bcf86cd799439011
+```
+
+```javascript JavaScript
+const userId = '507f1f77bcf86cd799439011';
+const response = await fetch(`https://api.boundry.com/api/users/${userId}`, {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+const publicProfile = await response.json();
+```
+
+```python Python
+import requests
+
+user_id = "507f1f77bcf86cd799439011"
+response = requests.get(f"https://api.boundry.com/api/users/{user_id}")
+public_profile = response.json()
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success Response (200)
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "username": "johndoe",
+  "avatar": {
+    "url": "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v1234567890/avatars/user123.jpg",
+    "publicId": "avatars/user123"
+  },
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "listings": 5
+}
+```
+
+```json User Not Found (404)
+{
+  "message": "User not found"
+}
+```
+</ResponseExample>
+
+## Error Responses
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Public profile retrieved successfully |
+| 404 | User with the specified ID not found |
+| 400 | Invalid user ID format (not a valid ObjectId) |
+
+## Privacy & Security
+
+<Warning>
+  This endpoint returns ONLY public information. Sensitive fields are excluded:
+  - Email address
+  - Phone number
+  - Password (hash)
+  - Admin status
+</Warning>
+
+The endpoint is designed for public consumption and includes only:
+- Username
+- Avatar
+- Account creation date
+- Listings count (via virtual population)
+
+This makes it safe for displaying user profiles, author information on listings, and other public-facing features.
+
+## Implementation Details
+
+This endpoint is implemented in `controllers/userController.js:55` as `getUserPublicProfile`. It:
+
+1. Extracts the user ID from the URL path parameter (`:id`)
+2. Queries the database with `.select('username createdAt avatar')` to retrieve ONLY public fields
+3. Populates the `listings` virtual field to include the count of user's listings
+4. Returns the limited user object or 404 if not found
+
+<Info>
+  The `.select()` method explicitly limits returned fields to prevent accidental exposure of sensitive data. Even if the schema changes, only these specified fields will be returned.
+</Info>
+
+## Use Cases
+
+- Displaying author information on property listings
+- Showing user profiles in search results
+- Linking to user pages from listing details
+- Displaying user statistics (listings count, join date)
+- Building public user directory or leaderboard features

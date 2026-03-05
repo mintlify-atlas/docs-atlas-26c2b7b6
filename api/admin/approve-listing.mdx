@@ -1,0 +1,158 @@
+---
+title: "Approve Listing"
+api: "PATCH /api/admin/listings/:id/approve"
+description: "Approve a pending listing to make it publicly visible"
+---
+
+## Authentication
+
+This endpoint requires:
+- Valid JWT token (via cookie)
+- Admin role (`isAdmin: true`)
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The MongoDB ObjectId of the listing to approve
+</ParamField>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success message
+</ResponseField>
+
+<ResponseField name="listing" type="object">
+  The approved listing object
+  
+  <ResponseField name="_id" type="string">
+    Listing ID
+  </ResponseField>
+  
+  <ResponseField name="title" type="string">
+    Listing title
+  </ResponseField>
+  
+  <ResponseField name="description" type="string">
+    Listing description
+  </ResponseField>
+  
+  <ResponseField name="price" type="number">
+    Property price
+  </ResponseField>
+  
+  <ResponseField name="location" type="object">
+    Property location
+  </ResponseField>
+  
+  <ResponseField name="propertyType" type="string">
+    Type of property
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    Listing status
+  </ResponseField>
+  
+  <ResponseField name="bedrooms" type="number">
+    Number of bedrooms
+  </ResponseField>
+  
+  <ResponseField name="bathrooms" type="number">
+    Number of bathrooms
+  </ResponseField>
+  
+  <ResponseField name="areaSqft" type="number">
+    Property area in square feet
+  </ResponseField>
+  
+  <ResponseField name="images" type="array">
+    Property images
+  </ResponseField>
+  
+  <ResponseField name="createdBy" type="string">
+    Creator user ID
+  </ResponseField>
+  
+  <ResponseField name="isApproved" type="boolean">
+    Approval status (true after approval)
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="string">
+    Creation timestamp
+  </ResponseField>
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X PATCH "https://api.boundry.com/api/admin/listings/64a1b2c3d4e5f6789abcdef0/approve" \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const listingId = '64a1b2c3d4e5f6789abcdef0';
+
+const response = await fetch(`/api/admin/listings/${listingId}/approve`, {
+  method: 'PATCH',
+  credentials: 'include'
+});
+
+const data = await response.json();
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Success
+{
+  "message": "Listing approved successfully",
+  "listing": {
+    "_id": "64a1b2c3d4e5f6789abcdef0",
+    "title": "Modern 3BR Apartment in Downtown",
+    "description": "Spacious apartment with city views",
+    "price": 250000,
+    "location": {
+      "city": "karachi",
+      "area": "Clifton"
+    },
+    "propertyType": "apartment",
+    "status": "for-sale",
+    "bedrooms": 3,
+    "bathrooms": 2,
+    "areaSqft": 1500,
+    "images": [
+      {
+        "url": "https://cloudinary.com/image1.jpg",
+        "publicId": "listings/abc123"
+      }
+    ],
+    "createdBy": "64a1b2c3d4e5f6789abcdef1",
+    "isApproved": true,
+    "createdAt": "2024-03-15T10:30:00.000Z"
+  }
+}
+```
+
+```json 400 Bad Request
+{
+  "message": "Listing could not be approved :: Error details"
+}
+```
+
+```json 401 Unauthorized
+{
+  "message": "Token Authentication Failed :: Token not verified"
+}
+```
+
+```json 403 Forbidden
+{
+  "message": "Access Denied :: Admin permissions required"
+}
+```
+</ResponseExample>
+
+## Implementation Details
+
+- Updates the listing's `isApproved` field to `true`
+- Uses `findByIdAndUpdate` with `{ new: true }` to return the updated document
+- Once approved, the listing becomes visible in public listing queries
+- The approval action is permanent and cannot be undone via reject endpoint

@@ -1,0 +1,345 @@
+---
+title: Listings
+description: Understanding property listings, statuses, and the approval workflow
+---
+
+Listings are property advertisements created by users. Each listing goes through an approval workflow before becoming publicly visible.
+
+## Listing Schema
+
+The Listing model defines property structure and validation:
+
+```javascript
+// From models/listingModel.js:3-94
+const listingSchema = mongoose.Schema({
+  title: { type: String, required: true, trim: true },
+  description: { type: String, required: true, trim: true },
+  price: { 
+    type: Number, 
+    required: true, 
+    min: [1, "Price needs to be higher than 0"] 
+  },
+  location: {
+    city: { type: String, required: true, trim: true, lowercase: true },
+    area: { type: String, required: true, trim: true },
+  },
+  propertyType: {
+    type: String,
+    required: true,
+    lowercase: true,
+    enum: {
+      values: ["house", "apartment", "villa", "studio", "office"],
+      message: "{VALUE} is not a valid property type",
+    },
+  },
+  status: {
+    type: String,
+    required: true,
+    lowercase: true,
+    enum: {
+      values: ["for-sale", "for-rent"],
+      message: "{VALUE} is not a valid status",
+    },
+    default: "for-sale",
+  },
+  acquiredStatus: {
+    type: String,
+    lowercase: true,
+    enum: ["sold", "rented"],
+  },
+  bedrooms: { 
+    type: Number, 
+    required: true, 
+    min: [1, "There must be atleast 1 bedroom"] 
+  },
+  bathrooms: { 
+    type: Number, 
+    required: true, 
+    min: [1, "There must be atleast 1 bathroom"] 
+  },
+  areaSqft: { type: Number, required: true },
+  images: [{
+    url: { type: String, required: true },
+    publicId: { type: String, required: true },
+  }],
+  createdBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "User", 
+    required: true 
+  },
+  isApproved: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+});
+```
+
+## Field Details
+
+### Basic Information
+
+<ParamField path="title" type="string" required>
+  Property title/headline
+</ParamField>
+
+<ParamField path="description" type="string" required>
+  Detailed property description
+</ParamField>
+
+<ParamField path="price" type="number" required>
+  Property price (minimum: 1)
+</ParamField>
+
+### Location
+
+<ParamField path="location" type="object" required>
+  Property address information
+  
+  <Expandable title="properties">
+    <ParamField path="city" type="string" required>
+      City name (stored in lowercase)
+    </ParamField>
+    <ParamField path="area" type="string" required>
+      Specific area or neighborhood
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Property Details
+
+<ParamField path="propertyType" type="enum" required>
+  Type of property
+  
+  **Valid values:**
+  - `house`
+  - `apartment`
+  - `villa`
+  - `studio`
+  - `office`
+</ParamField>
+
+<ParamField path="bedrooms" type="number" required>
+  Number of bedrooms (minimum: 1)
+</ParamField>
+
+<ParamField path="bathrooms" type="number" required>
+  Number of bathrooms (minimum: 1)
+</ParamField>
+
+<ParamField path="areaSqft" type="number" required>
+  Property area in square feet
+</ParamField>
+
+### Status Fields
+
+<ParamField path="status" type="enum" required default="for-sale">
+  Listing type
+  
+  **Valid values:**
+  - `for-sale` - Property is for sale
+  - `for-rent` - Property is for rent
+</ParamField>
+
+<ParamField path="acquiredStatus" type="enum">
+  Indicates if property has been acquired
+  
+  **Valid values:**
+  - `sold` - Property has been sold (for for-sale listings)
+  - `rented` - Property has been rented (for for-rent listings)
+  - `undefined` - Property still available
+</ParamField>
+
+### Metadata
+
+<ParamField path="images" type="array" required>
+  Array of property images (up to 10)
+  
+  <Expandable title="properties">
+    <ParamField path="url" type="string" required>
+      Cloudinary image URL
+    </ParamField>
+    <ParamField path="publicId" type="string" required>
+      Cloudinary public ID for deletion
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="createdBy" type="ObjectId" required>
+  Reference to User who created the listing
+</ParamField>
+
+<ParamField path="isApproved" type="boolean" default="false">
+  Admin approval status
+</ParamField>
+
+<ParamField path="createdAt" type="Date" default="Date.now">
+  Listing creation timestamp
+</ParamField>
+
+## Listing Lifecycle
+
+<Steps>
+  <Step title="Creation">
+    User creates a listing with property details and images
+    
+    - `isApproved` is set to `false` by default
+    - Images uploaded to Cloudinary
+    - `createdBy` set to authenticated user's ID
+  </Step>
+  
+  <Step title="Pending Review">
+    Listing is invisible to public, awaiting admin review
+    
+    - Only visible to creator and admins
+    - Appears in admin pending listings queue
+  </Step>
+  
+  <Step title="Admin Decision">
+    Admin approves or rejects the listing
+    
+    **If approved:**
+    - `isApproved` set to `true`
+    - Listing becomes publicly visible
+    
+    **If rejected:**
+    - `isApproved` remains `false`
+    - Listing stays hidden from public
+  </Step>
+  
+  <Step title="Active Listing">
+    Approved listing is visible in public searches
+    
+    - Appears in GET `/api/listings` results
+    - Users can view full details
+    - Creator can update or mark as acquired
+  </Step>
+  
+  <Step title="Acquired (Optional)">
+    Creator marks listing as sold/rented
+    
+    - `acquiredStatus` set to `"sold"` or `"rented"`
+    - Listing may still be visible but marked as unavailable
+  </Step>
+</Steps>
+
+## Database Indexes
+
+Optimized for common query patterns:
+
+```javascript
+// From models/listingModel.js:96-102
+listingSchema.index({ price: 1 });
+listingSchema.index({ propertyType: 1 });
+listingSchema.index({ createdAt: -1 });
+listingSchema.index({ areaSqft: 1 });
+listingSchema.index({ status: 1 });
+listingSchema.index({ isApproved: 1 });
+listingSchema.index({ "location.city": 1 });
+```
+
+<Info>These indexes enable fast filtering by price, type, date, area, and location</Info>
+
+## Static Methods
+
+### `findByApprovedStatus`
+
+Helper method to query listings by approval status:
+
+```javascript
+// From models/listingModel.js:104-106
+listingSchema.static("findByApprovedStatus", function (isApproved = true) {
+  return this.find({ isApproved });
+});
+```
+
+**Usage:**
+```javascript
+const approvedListings = await Listing.findByApprovedStatus(true);
+const pendingListings = await Listing.findByApprovedStatus(false);
+```
+
+## Acquired Status Toggle Logic
+
+The toggle endpoint uses smart logic based on listing type:
+
+```javascript
+// From controllers/listingController.js
+if (status === "for-sale") {
+  listing.acquiredStatus = listing.acquiredStatus === "sold" ? undefined : "sold";
+} else if (status === "for-rent") {
+  listing.acquiredStatus = listing.acquiredStatus === "rented" ? undefined : "rented";
+}
+```
+
+## Image Upload Details
+
+Images are uploaded via multipart form data:
+
+- **Max images:** 10 per listing
+- **Field name:** `images` (array)
+- **Middleware:** `upload.array("images", 10)`
+- **Storage:** Cloudinary with auto-optimization
+- **Format:** URL and publicId stored for each image
+
+## Query Filtering
+
+The `/api/listings` endpoint supports extensive filtering:
+
+```javascript
+// From utils/buildQuery.js - supports:
+- city (exact match, lowercase)
+- minPrice, maxPrice (range)
+- propertyType (exact match)
+- minBedrooms, maxBedrooms (range)
+- minBathrooms, maxBathrooms (range)
+- minArea, maxArea (range in sqft)
+- search (title search)
+- sort (createdAt, price, areaSqft)
+```
+
+<Tip>Combine filters for precise searches: `?city=karachi&propertyType=apartment&minPrice=200000&maxPrice=500000`</Tip>
+
+## Example Listing Object
+
+```json
+{
+  "_id": "65f1a2b3c4d5e6f7a8b9c0d2",
+  "title": "Luxury 3-Bed Apartment in Clifton",
+  "description": "Spacious apartment with sea view",
+  "price": 450000,
+  "location": {
+    "city": "karachi",
+    "area": "Clifton Block 8"
+  },
+  "propertyType": "apartment",
+  "status": "for-sale",
+  "acquiredStatus": null,
+  "bedrooms": 3,
+  "bathrooms": 2,
+  "areaSqft": 1500,
+  "images": [
+    {
+      "url": "https://res.cloudinary.com/.../image1.jpg",
+      "publicId": "boundry/abc123"
+    }
+  ],
+  "createdBy": "65f1a2b3c4d5e6f7a8b9c0d1",
+  "isApproved": true,
+  "createdAt": "2024-03-15T10:35:00.000Z"
+}
+```
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Get All Listings" icon="list" href="/api/listings/get-all">
+    Retrieve approved listings with filters
+  </Card>
+  <Card title="Create Listing" icon="plus" href="/api/listings/create">
+    Create a new property listing
+  </Card>
+  <Card title="Admin Approval" icon="check" href="/api/admin/approve-listing">
+    Approve pending listings
+  </Card>
+  <Card title="Toggle Acquired" icon="circle-check" href="/api/listings/toggle-acquired">
+    Mark listing as sold/rented
+  </Card>
+</CardGroup>

@@ -1,0 +1,370 @@
+---
+title: Environment Variables
+description: Complete environment configuration reference
+---
+
+Boundry Backend uses environment variables for configuration. All sensitive data and deployment-specific settings are stored in a `.env` file.
+
+## Quick Setup
+
+Create a `.env` file in the project root:
+
+```bash
+# Server Configuration
+PORT=5000
+NODE_ENV=development
+
+# Database
+MONGO_URI=mongodb://localhost:27017/boundry
+
+# JWT Authentication
+JWT_ACCESS_KEY=your_very_long_and_random_secret_key_here
+
+# Cloudinary Configuration
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
+<Warning>Never commit `.env` to version control. It's already in `.gitignore`</Warning>
+
+## Environment Variables Reference
+
+### Server Configuration
+
+<ParamField path="PORT" type="number" default="5000">
+  Port number for the Express server
+  
+  ```javascript
+  // From index.js:39-42
+  const port = process.env.PORT || 5000;
+  app.listen(port, () => {
+    console.log(`App listening on port ${port}`);
+  });
+  ```
+</ParamField>
+
+<ParamField path="NODE_ENV" type="string" default="development">
+  Environment mode - affects cookie security and logging
+  
+  **Values:**
+  - `development` - Cookies work over HTTP, verbose logging
+  - `production` - Cookies require HTTPS, minimal logging
+  
+  ```javascript
+  // From utils/jwt.js:16
+  secure: process.env.NODE_ENV === "production"
+  ```
+  
+  <Tip>Set to `production` when deploying to enable secure cookies</Tip>
+</ParamField>
+
+### Database
+
+<ParamField path="MONGO_URI" type="string" required>
+  MongoDB connection string
+  
+  ```javascript
+  // From config/db.js:8
+  await mongoose.connect(process.env.MONGO_URI, { dbName: "boundry" });
+  ```
+  
+  **Local MongoDB:**
+  ```bash
+  MONGO_URI=mongodb://localhost:27017/boundry
+  ```
+  
+  **MongoDB Atlas:**
+  ```bash
+  MONGO_URI=mongodb+srv://<username>:<password>@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
+  ```
+  
+  <Note>The database name `boundry` is hardcoded in the connection options</Note>
+</ParamField>
+
+### JWT Authentication
+
+<ParamField path="JWT_ACCESS_KEY" type="string" required>
+  Secret key for signing JWT access tokens
+  
+  ```javascript
+  // From utils/jwt.js:9
+  const accessToken = jwt.sign({ userId }, process.env.JWT_ACCESS_KEY, {
+    expiresIn: "1h",
+  });
+  ```
+  
+  **Security Requirements:**
+  - Minimum 32 characters
+  - Use random, unpredictable characters
+  - Never reuse across environments
+  
+  **Generate a secure key:**
+  ```bash
+  # Using OpenSSL
+  openssl rand -base64 32
+  
+  # Using Node.js
+  node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+  ```
+</ParamField>
+
+<ParamField path="JWT_REFRESH_KEY" type="string">
+  Secret key for refresh tokens (currently unused)
+  
+  ```javascript
+  // From utils/jwt.js:22 - implemented but not used
+  export const generateRefreshToken = (res, userId) => {
+    const refreshToken = jwt.sign({ userId }, process.env.JWT_REFRESH_KEY, {
+      expiresIn: "30d",
+    });
+  };
+  ```
+  
+  <Info>Refresh token logic exists but is commented out in controllers</Info>
+</ParamField>
+
+### Cloudinary Configuration
+
+Cloudinary is used for image storage and delivery.
+
+<ParamField path="CLOUDINARY_CLOUD_NAME" type="string" required>
+  Your Cloudinary cloud name
+  
+  **Find it:**
+  1. Log in to [cloudinary.com](https://cloudinary.com)
+  2. Go to Dashboard
+  3. Copy "Cloud name"
+</ParamField>
+
+<ParamField path="CLOUDINARY_API_KEY" type="string" required>
+  Your Cloudinary API key
+  
+  **Find it:**
+  1. Cloudinary Dashboard → API Keys
+  2. Copy "API Key"
+</ParamField>
+
+<ParamField path="CLOUDINARY_API_SECRET" type="string" required>
+  Your Cloudinary API secret
+  
+  **Find it:**
+  1. Cloudinary Dashboard → API Keys
+  2. Click "Reveal" next to "API Secret"
+  3. Copy the value
+  
+  <Warning>Keep this secret - it grants full access to your Cloudinary account</Warning>
+</ParamField>
+
+```javascript
+// From utils/cloudinary.js:7-11
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+```
+
+## Environment-Specific Configurations
+
+### Development
+
+```bash
+# .env.development
+PORT=5000
+NODE_ENV=development
+MONGO_URI=mongodb://localhost:27017/boundry
+JWT_ACCESS_KEY=dev_secret_key_32_chars_minimum
+CLOUDINARY_CLOUD_NAME=your_dev_cloud
+CLOUDINARY_API_KEY=123456789012345
+CLOUDINARY_API_SECRET=dev_secret
+```
+
+### Production
+
+```bash
+# .env.production
+PORT=5000
+NODE_ENV=production
+MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/
+JWT_ACCESS_KEY=<super_secure_production_key>
+CLOUDINARY_CLOUD_NAME=your_prod_cloud
+CLOUDINARY_API_KEY=987654321098765
+CLOUDINARY_API_SECRET=<prod_secret>
+```
+
+<Tip>Use different Cloudinary accounts/folders for dev and prod to avoid mixing assets</Tip>
+
+## Loading Environment Variables
+
+The application uses `dotenv` to load variables:
+
+```javascript
+// From index.js:3,12
+import dotenv from "dotenv";
+dotenv.config();
+```
+
+This reads `.env` from the project root automatically.
+
+## Validation Checklist
+
+Before starting the server, verify:
+
+<Steps>
+  <Step title="File Exists">
+    ```bash
+    ls -la .env
+    ```
+    File should exist and not be empty
+  </Step>
+  
+  <Step title="MongoDB Accessible">
+    ```bash
+    # For local MongoDB
+    mongo --eval "db.runCommand({ ping: 1 })"
+    
+    # For Atlas, test connection string in MongoDB Compass
+    ```
+  </Step>
+  
+  <Step title="Cloudinary Credentials Valid">
+    Test upload in Cloudinary dashboard or with their SDK
+  </Step>
+  
+  <Step title="JWT Key Length">
+    ```bash
+    echo $JWT_ACCESS_KEY | wc -c
+    ```
+    Should be at least 32 characters
+  </Step>
+</Steps>
+
+## Common Errors
+
+<AccordionGroup>
+  <Accordion title="Missing Environment Variable">
+    **Error:**
+    ```
+    TypeError: Cannot read property 'MONGO_URI' of undefined
+    ```
+    
+    **Solution:**
+    - Ensure `.env` file exists in project root
+    - Check variable names match exactly (case-sensitive)
+    - Restart server after editing `.env`
+  </Accordion>
+  
+  <Accordion title="MongoDB Connection String Invalid">
+    **Error:**
+    ```
+    MongoParseError: Invalid connection string
+    ```
+    
+    **Solution:**
+    - Check for typos in `MONGO_URI`
+    - Ensure special characters in password are URL-encoded
+    - For Atlas: Verify cluster is active and IP whitelisted
+  </Accordion>
+  
+  <Accordion title="JWT Token Generation Fails">
+    **Error:**
+    ```
+    Error: secretOrPrivateKey must have a value
+    ```
+    
+    **Solution:**
+    - Set `JWT_ACCESS_KEY` in `.env`
+    - Ensure no extra quotes or spaces around the value
+  </Accordion>
+  
+  <Accordion title="Cloudinary Upload Returns Null">
+    **Error:**
+    ```
+    File upload failed (null response)
+    ```
+    
+    **Solution:**
+    - Verify all three Cloudinary variables are set
+    - Check credentials are correct (no extra spaces)
+    - Ensure API secret hasn't been regenerated
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Never Commit" icon="ban">
+    `.env` must be in `.gitignore` - never commit secrets to Git
+  </Card>
+  <Card title="Rotate Keys" icon="rotate">
+    Change JWT keys and Cloudinary secrets periodically
+  </Card>
+  <Card title="Use Secrets Management" icon="vault">
+    In production, use AWS Secrets Manager, HashiCorp Vault, or similar
+  </Card>
+  <Card title="Minimum Permissions" icon="shield">
+    Use database users with minimal required privileges
+  </Card>
+</CardGroup>
+
+## Deployment Platforms
+
+How to set environment variables on common platforms:
+
+### Heroku
+
+```bash
+heroku config:set MONGO_URI="mongodb+srv://..."
+heroku config:set JWT_ACCESS_KEY="..."
+heroku config:set CLOUDINARY_CLOUD_NAME="..."
+# etc.
+```
+
+### Vercel
+
+1. Project Settings → Environment Variables
+2. Add each variable
+3. Select environments (Production, Preview, Development)
+
+### Railway
+
+1. Project → Variables
+2. Add variables in Key/Value format
+3. Redeploy for changes to take effect
+
+### Docker
+
+```yaml
+# docker-compose.yml
+services:
+  api:
+    environment:
+      - MONGO_URI=${MONGO_URI}
+      - JWT_ACCESS_KEY=${JWT_ACCESS_KEY}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+```
+
+Then use a `.env` file locally:
+```bash
+docker-compose --env-file .env up
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Setup" icon="database" href="/guides/database">
+    Configure MongoDB schemas and indexes
+  </Card>
+  <Card title="Setup Guide" icon="wrench" href="/guides/setup">
+    Complete installation instructions
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Make your first API request
+  </Card>
+  <Card title="Authentication" icon="lock" href="/authentication">
+    Learn about JWT configuration
+  </Card>
+</CardGroup>

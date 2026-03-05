@@ -1,0 +1,237 @@
+---
+title: "Get User's Listings"
+api: "GET /api/listings/my-listings"
+description: "Get all listings created by the authenticated user"
+---
+
+## Overview
+
+Retrieves all listings created by the currently authenticated user. Supports filtering by status and searching by title.
+
+## Authentication
+
+**Required:** Yes (JWT token in cookies)
+
+The `createdBy` filter is automatically set from the authenticated user.
+
+## Query Parameters
+
+<ParamField query="search" type="string" default="">
+  Case-insensitive search in listing titles
+</ParamField>
+
+<ParamField query="status" type="string" default="all">
+  Filter by listing status
+  
+  **Allowed values:**
+  - `all` - All listings
+  - `active` - Approved listings that haven't been sold/rented
+  - `pending` - Not yet approved by admin
+  - `sold` - Sold or rented listings
+</ParamField>
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+## Response
+
+<ResponseField name="userListings" type="array">
+  Array of the user's listing objects
+  
+  <Expandable title="Listing object">
+    <ResponseField name="_id" type="string">
+      Unique listing identifier
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Listing title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Listing description
+    </ResponseField>
+    
+    <ResponseField name="price" type="number">
+      Listing price
+    </ResponseField>
+    
+    <ResponseField name="location" type="object">
+      Location information
+    </ResponseField>
+    
+    <ResponseField name="propertyType" type="string">
+      Type of property
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Listing status: `for-sale` or `for-rent`
+    </ResponseField>
+    
+    <ResponseField name="acquiredStatus" type="string | null">
+      Acquisition status: `sold`, `rented`, or `null`
+    </ResponseField>
+    
+    <ResponseField name="bedrooms" type="number">
+      Number of bedrooms
+    </ResponseField>
+    
+    <ResponseField name="bathrooms" type="number">
+      Number of bathrooms
+    </ResponseField>
+    
+    <ResponseField name="areaSqft" type="number">
+      Area in square feet
+    </ResponseField>
+    
+    <ResponseField name="images" type="array">
+      Array of image objects
+    </ResponseField>
+    
+    <ResponseField name="createdBy" type="string">
+      User ID (matches authenticated user)
+    </ResponseField>
+    
+    <ResponseField name="isApproved" type="boolean">
+      Approval status
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="page" type="number">
+  Current page number
+</ResponseField>
+
+<ResponseField name="pages" type="number">
+  Total number of pages
+</ResponseField>
+
+<ResponseField name="totalMatches" type="number">
+  Total number of user's listings (across all pages)
+</ResponseField>
+
+## Examples
+
+### Get all user's listings
+
+```bash
+curl https://api.boundry.app/api/listings/my-listings \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN"
+```
+
+### Get only pending listings
+
+```bash
+curl "https://api.boundry.app/api/listings/my-listings?status=pending" \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN"
+```
+
+### Get active listings with search
+
+```bash
+curl "https://api.boundry.app/api/listings/my-listings?status=active&search=villa" \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN"
+```
+
+### Get sold/rented listings
+
+```bash
+curl "https://api.boundry.app/api/listings/my-listings?status=sold" \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN"
+```
+
+### Response (200 OK)
+
+```json
+{
+  "userListings": [
+    {
+      "_id": "507f1f77bcf86cd799439011",
+      "title": "Luxury Villa in Dubai Marina",
+      "description": "Stunning 4-bedroom villa",
+      "price": 2500000,
+      "location": {
+        "city": "dubai",
+        "area": "Dubai Marina"
+      },
+      "propertyType": "villa",
+      "status": "for-sale",
+      "acquiredStatus": null,
+      "bedrooms": 4,
+      "bathrooms": 3,
+      "areaSqft": 3500,
+      "images": [
+        {
+          "url": "https://res.cloudinary.com/...",
+          "publicId": "boundry/listings/xyz123"
+        }
+      ],
+      "createdBy": "507f191e810c19729de860ea",
+      "isApproved": true,
+      "createdAt": "2024-01-15T10:30:00.000Z"
+    }
+  ],
+  "page": 1,
+  "pages": 3,
+  "totalMatches": 12
+}
+```
+
+### Empty Response (200 OK)
+
+```json
+{
+  "message": "No listings found.",
+  "listings": []
+}
+```
+
+## Error Responses
+
+### Unauthorized (401)
+
+```json
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+
+### Server Error (500)
+
+```json
+{
+  "message": "[error details]"
+}
+```
+
+## Status Filter Logic
+
+### `active`
+Listings where:
+- `isApproved: true`
+- `acquiredStatus: null`
+
+### `pending`
+Listings where:
+- `isApproved: false`
+- `acquiredStatus: null`
+
+### `sold`
+Listings where:
+- `acquiredStatus` is `"sold"` or `"rented"`
+
+### `all`
+All listings owned by the user, regardless of approval or acquisition status.
+
+## Implementation Details
+
+- Implemented in `controllers/listingController.js:43`
+- Route defined in `routes/listingRoutes.js:19`
+- Fixed limit of 5 listings per page
+- Results sorted by `createdAt` in descending order (newest first)
+- The `createdBy` field is not populated (returns user ID only)
+- Search matches against listing title with case-insensitive regex

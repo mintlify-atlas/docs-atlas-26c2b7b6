@@ -1,0 +1,291 @@
+---
+title: Authentication
+description: Understanding JWT-based authentication in Boundry Backend
+---
+
+Boundry Backend uses JWT (JSON Web Tokens) with HTTP-only cookies for secure, stateless authentication.
+
+## Authentication Flow
+
+The authentication system follows this flow:
+
+<Steps>
+  <Step title="User Registration or Login">
+    User provides credentials via `/api/auth/register` or `/api/auth/login`
+  </Step>
+  
+  <Step title="JWT Generation">
+    Server generates a JWT containing the user ID and sets it as an HTTP-only cookie
+    
+    ```javascript
+    // From utils/jwt.js:8-19
+    export const generateAccessToken = (res, userId) => {
+      const accessToken = jwt.sign({ userId }, process.env.JWT_ACCESS_KEY, {
+        expiresIn: "1h",
+      });
+
+      res.cookie("jwt", accessToken, {
+        httpOnly: true,
+        sameSite: "strict",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 1000 * 60 * 60, // 1 hour
+      });
+    };
+    ```
+  </Step>
+  
+  <Step title="Token Verification">
+    For protected routes, the `authenticateToken` middleware extracts and verifies the JWT from cookies
+  </Step>
+  
+  <Step title="User Context">
+    If valid, the user object is attached to `req.user` for use in controllers
+  </Step>
+</Steps>
+
+## JWT Token Details
+
+### Token Structure
+
+The JWT payload contains:
+
+```json
+{
+  "userId": "65f1a2b3c4d5e6f7a8b9c0d1",
+  "iat": 1710504600,
+  "exp": 1710508200
+}
+```
+
+- **userId**: MongoDB ObjectId of the authenticated user
+- **iat**: Issued at timestamp
+- **exp**: Expiration timestamp (1 hour from issuance)
+
+### Cookie Configuration
+
+The JWT is stored in an HTTP-only cookie with the following attributes:
+
+<ParamField path="httpOnly" type="boolean" default="true">
+  Prevents JavaScript access to the cookie, mitigating XSS attacks
+</ParamField>
+
+<ParamField path="sameSite" type="string" default="strict">
+  CSRF protection - cookie only sent with same-site requests
+</ParamField>
+
+<ParamField path="secure" type="boolean" default="true in production">
+  Cookie only transmitted over HTTPS in production
+</ParamField>
+
+<ParamField path="maxAge" type="number" default="3600000">
+  Cookie lifetime in milliseconds (1 hour)
+</ParamField>
+
+## Authentication Middleware
+
+### `authenticateToken`
+
+Verifies the JWT and attaches the user to the request:
+
+```javascript
+// From middleware/auth.js:4-23
+export const authenticateToken = async (req, res, next) => {
+  let token = req.cookies.jwt;
+
+  if (token) {
+    try {
+      const decoded = verifyAccessToken(token);
+      req.user = await User.findById(decoded.userId).select("-password");
+      next();
+    } catch (error) {
+      res.status(401).json({ 
+        message: "Token Authentication Failed :: Token not verified" 
+      });
+    }
+  } else {
+    res.status(401).json({ 
+      message: "Token Authentication Failed :: Token not found" 
+    });
+  }
+};
+```
+
+**Usage in routes:**
+```javascript
+router.route("/profile").get(authenticateToken, getCurrentUser);
+```
+
+### `authorizeAdmin`
+
+Verifies the authenticated user has admin privileges:
+
+```javascript
+// From middleware/auth.js:25-39
+export const authorizeAdmin = async (req, res, next) => {
+  if (req.user) {
+    if (req.user.isAdmin) {
+      next();
+    } else {
+      res.status(403).json({ 
+        message: "Access Denied :: Admin permissions required" 
+      });
+    }
+  } else {
+    res.status(401).json({ 
+      message: "Authorization failed :: User not found" 
+    });
+  }
+};
+```
+
+<Warning>Always chain `authorizeAdmin` after `authenticateToken` - it assumes `req.user` is already populated</Warning>
+
+**Usage in routes:**
+```javascript
+router.route("/users").get(authenticateToken, authorizeAdmin, getAllUsers);
+```
+
+## Token Verification
+
+```javascript
+// From utils/jwt.js:34-42
+export const verifyAccessToken = (token) => {
+  try {
+    const isVerified = jwt.verify(token, process.env.JWT_ACCESS_KEY);
+    return isVerified;
+  } catch (e) {
+    console.error(`Access Token Verification failed :: ${e.message}`);
+    return null;
+  }
+};
+```
+
+## Logout Process
+
+Logging out clears the JWT cookie:
+
+```javascript
+// From controllers/authController.js:87-96
+const logout = async (req, res) => {
+  res.cookie("jwt", "", {
+    httpOnly: true,
+    expires: new Date(0), // Expire immediately
+  });
+
+  res.status(200).json({ message: "Logged out successfully" });
+};
+```
+
+## Security Best Practices
+
+<CardGroup cols={2}>
+  <Card title="HTTP-Only Cookies" icon="cookie">
+    Tokens stored in HTTP-only cookies cannot be accessed via JavaScript, preventing XSS attacks
+  </Card>
+  
+  <Card title="Short Expiration" icon="clock">
+    1-hour token lifetime limits exposure if a token is compromised
+  </Card>
+  
+  <Card title="HTTPS Only" icon="shield">
+    Cookies marked `secure` in production - transmitted only over encrypted connections
+  </Card>
+  
+  <Card title="SameSite Protection" icon="lock">
+    `sameSite: strict` prevents CSRF attacks by blocking cross-site cookie transmission
+  </Card>
+</CardGroup>
+
+## Error Responses
+
+### 401 Unauthorized
+
+```json
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+
+or
+
+```json
+{
+  "message": "Token Authentication Failed :: Token not verified"
+}
+```
+
+### 403 Forbidden
+
+```json
+{
+  "message": "Access Denied :: Admin permissions required"
+}
+```
+
+## Environment Variables
+
+Required JWT configuration:
+
+```bash
+JWT_ACCESS_KEY=your_secret_key_minimum_32_characters
+NODE_ENV=production  # Enables secure cookie flag
+```
+
+<Tip>Generate a strong random key: `openssl rand -base64 32`</Tip>
+
+## Example: Protected Request
+
+### Using cURL
+
+```bash
+# Login and save cookies
+curl -X POST http://localhost:5000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"email":"user@example.com","password":"password123"}'
+
+# Use saved cookies for authenticated request
+curl -X GET http://localhost:5000/api/auth/profile \
+  -b cookies.txt
+```
+
+### Using JavaScript (fetch)
+
+```javascript
+// Login
+const loginResponse = await fetch('http://localhost:5000/api/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include', // Include cookies
+  body: JSON.stringify({
+    email: 'user@example.com',
+    password: 'password123'
+  })
+});
+
+// Authenticated request - cookie sent automatically
+const profileResponse = await fetch('http://localhost:5000/api/auth/profile', {
+  credentials: 'include' // Include cookies
+});
+
+const profile = await profileResponse.json();
+```
+
+<Note>Always set `credentials: 'include'` to send cookies with requests</Note>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="User Management" icon="users" href="/concepts/users">
+    Learn about user roles and profiles
+  </Card>
+  <Card title="Admin Workflow" icon="shield-halved" href="/concepts/admin-workflow">
+    Understand admin authorization
+  </Card>
+  <Card title="Register Endpoint" icon="user-plus" href="/api/auth/register">
+    API reference for registration
+  </Card>
+  <Card title="Login Endpoint" icon="right-to-bracket" href="/api/auth/login">
+    API reference for login
+  </Card>
+</CardGroup>

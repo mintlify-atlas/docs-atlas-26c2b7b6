@@ -1,0 +1,249 @@
+---
+title: Welcome to Boundry Backend
+mode: custom
+---
+
+<div className="relative overflow-hidden bg-gradient-to-br from-[#020627] via-[#0a0e2e] to-[#020627] dark:from-[#020627] dark:via-[#0a0e2e] dark:to-[#020627] py-20 px-4 sm:px-6 lg:px-8">
+  <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))] opacity-10"></div>
+  
+  <div className="relative max-w-7xl mx-auto">
+    <div className="text-center">
+      <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-6">
+        Real Estate Listing API
+      </h1>
+      <p className="text-lg sm:text-xl text-gray-300 dark:text-gray-300 max-w-3xl mx-auto mb-10">
+        A powerful backend service for managing property listings with user authentication, admin controls, and seamless Cloudinary image integration.
+      </p>
+      
+      <div className="flex flex-wrap items-center justify-center gap-4">
+        <a 
+          href="/quickstart" 
+          className="inline-flex items-center px-6 py-3 rounded-lg bg-[#529c3a] hover:bg-[#438030] text-white font-semibold transition-colors no-underline"
+        >
+          Get Started
+          <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </a>
+        <a 
+          href="/api/auth/register" 
+          className="inline-flex items-center px-6 py-3 rounded-lg border border-white/30 bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors no-underline"
+        >
+          API Reference
+          <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">Key Features</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Everything you need to build a production-ready real estate platform
+  </p>
+  
+  <CardGroup cols={2}>
+    <Card title="JWT Authentication" icon="lock" href="/authentication">
+      Secure JWT-based authentication with HTTP-only cookies for enhanced security
+    </Card>
+    <Card title="Listing Management" icon="building" href="/concepts/listings">
+      Complete CRUD operations for property listings with approval workflows
+    </Card>
+    <Card title="Admin Controls" icon="shield-halved" href="/concepts/admin-workflow">
+      Role-based access control with comprehensive admin moderation features
+    </Card>
+    <Card title="Image Upload" icon="image" href="/guides/setup">
+      Cloudinary integration for efficient image storage and delivery
+    </Card>
+    <Card title="MongoDB Backend" icon="database" href="/guides/database">
+      Optimized queries with indexed fields for high-performance operations
+    </Card>
+    <Card title="RESTful API" icon="code" href="/api/auth/register">
+      Clean, well-documented REST endpoints for all operations
+    </Card>
+  </CardGroup>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">Quick Start</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get up and running in minutes with these simple steps
+  </p>
+  
+  <Steps>
+    <Step title="Clone and Install">
+      Clone the repository and install dependencies
+      
+      ```bash
+      git clone https://github.com/Raza-Aziz/Boundry-Backend.git
+      cd Boundry-Backend
+      npm install
+      ```
+    </Step>
+    
+    <Step title="Configure Environment">
+      Set up your environment variables for database and services
+      
+      ```bash
+      # Create .env file
+      PORT=5000
+      MONGODB_URI=your_mongodb_connection_string
+      JWT_SECRET=your_secret_key
+      CLOUDINARY_CLOUD_NAME=your_cloud_name
+      CLOUDINARY_API_KEY=your_api_key
+      CLOUDINARY_API_SECRET=your_api_secret
+      ```
+      
+      <Info>See the [Environment Guide](/guides/environment) for detailed configuration options</Info>
+    </Step>
+    
+    <Step title="Start the Server">
+      Run the development server
+      
+      ```bash
+      npm run backend
+      ```
+      
+      Your API will be available at `http://localhost:5000`
+    </Step>
+    
+    <Step title="Make Your First Request">
+      Register a new user account
+      
+      ```bash
+      curl -X POST http://localhost:5000/api/auth/register \
+        -H "Content-Type: application/json" \
+        -d '{
+          "username": "johndoe",
+          "email": "john@example.com",
+          "password": "securepass123",
+          "phone": "+1234567890"
+        }'
+      ```
+      
+      <Accordion title="Example Response">
+        ```json
+        {
+          "user": {
+            "_id": "65abc123...",
+            "username": "johndoe",
+            "email": "john@example.com",
+            "phone": "+1234567890",
+            "isAdmin": false
+          },
+          "token": "eyJhbGciOiJIUzI1NiIs..."
+        }
+        ```
+      </Accordion>
+    </Step>
+  </Steps>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">Explore by Topic</h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Dive deeper into specific areas of the API
+  </p>
+  
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <a 
+      href="/concepts/users" 
+      className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#529c3a] dark:hover:border-[#529c3a] overflow-hidden transition-colors no-underline bg-white dark:bg-[#1a1d27]"
+    >
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">User Management</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Learn about user profiles, authentication flows, and account management
+        </p>
+        <div className="flex items-center text-sm font-medium text-[#529c3a] group-hover:text-[#438030]">
+          <span>Explore users</span>
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+    
+    <a 
+      href="/concepts/listings" 
+      className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#529c3a] dark:hover:border-[#529c3a] overflow-hidden transition-colors no-underline bg-white dark:bg-[#1a1d27]"
+    >
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Listings System</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Understand property types, statuses, and the listing lifecycle
+        </p>
+        <div className="flex items-center text-sm font-medium text-[#529c3a] group-hover:text-[#438030]">
+          <span>Explore listings</span>
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+    
+    <a 
+      href="/concepts/admin-workflow" 
+      className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#529c3a] dark:hover:border-[#529c3a] overflow-hidden transition-colors no-underline bg-white dark:bg-[#1a1d27]"
+    >
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Admin Workflow</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Moderate listings, manage users, and control platform permissions
+        </p>
+        <div className="flex items-center text-sm font-medium text-[#529c3a] group-hover:text-[#438030]">
+          <span>Explore admin</span>
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+    
+    <a 
+      href="/guides/database" 
+      className="group block rounded-2xl border border-gray-200 dark:border-[#27272a] hover:border-[#529c3a] dark:hover:border-[#529c3a] overflow-hidden transition-colors no-underline bg-white dark:bg-[#1a1d27]"
+    >
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-2">Database Schema</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Explore the MongoDB models, indexes, and query optimization
+        </p>
+        <div className="flex items-center text-sm font-medium text-[#529c3a] group-hover:text-[#438030]">
+          <span>Explore database</span>
+          <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="rounded-2xl border border-gray-200 dark:border-[#27272a] bg-gradient-to-br from-gray-50 to-white dark:from-[#1a1d27] dark:to-[#0f1117] p-8 sm:p-12 text-center">
+    <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-4">
+      Ready to Build?
+    </h2>
+    <p className="text-base text-gray-600 dark:text-gray-400 max-w-2xl mx-auto mb-8">
+      Start integrating the Boundry Backend API into your real estate platform today. Check out the complete API reference for detailed endpoint documentation.
+    </p>
+    <div className="flex flex-wrap items-center justify-center gap-4">
+      <a 
+        href="/quickstart" 
+        className="inline-flex items-center px-6 py-3 rounded-lg bg-[#529c3a] hover:bg-[#438030] text-white font-semibold transition-colors no-underline"
+      >
+        View Quickstart
+      </a>
+      <a 
+        href="/api/auth/register" 
+        className="inline-flex items-center px-6 py-3 rounded-lg border border-gray-300 dark:border-[#27272a] bg-white dark:bg-[#1a1d27] hover:bg-gray-50 dark:hover:bg-[#242838] text-gray-900 dark:text-white font-semibold transition-colors no-underline"
+      >
+        Browse API Docs
+      </a>
+    </div>
+  </div>
+</div>

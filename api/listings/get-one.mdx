@@ -1,0 +1,193 @@
+---
+title: "Get Single Listing"
+api: "GET /api/listings/:id"
+description: "Retrieve a single approved listing by ID"
+---
+
+## Overview
+
+Fetches detailed information about a specific listing. Only approved listings are accessible to the public.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The MongoDB ObjectId of the listing
+</ParamField>
+
+## Authentication
+
+**Required:** No
+
+Public endpoint, but only returns approved listings.
+
+## Response
+
+<ResponseField name="_id" type="string">
+  Unique listing identifier
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Listing title
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Listing description
+</ResponseField>
+
+<ResponseField name="price" type="number">
+  Listing price
+</ResponseField>
+
+<ResponseField name="location" type="object">
+  <Expandable title="Location object">
+    <ResponseField name="city" type="string">
+      City name (lowercase)
+    </ResponseField>
+    
+    <ResponseField name="area" type="string">
+      Area name
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="propertyType" type="string">
+  Type of property: `house`, `apartment`, `villa`, `studio`, or `office`
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Listing status: `for-sale` or `for-rent`
+</ResponseField>
+
+<ResponseField name="acquiredStatus" type="string | null">
+  Acquisition status: `sold`, `rented`, or `null`
+</ResponseField>
+
+<ResponseField name="bedrooms" type="number">
+  Number of bedrooms
+</ResponseField>
+
+<ResponseField name="bathrooms" type="number">
+  Number of bathrooms
+</ResponseField>
+
+<ResponseField name="areaSqft" type="number">
+  Area in square feet
+</ResponseField>
+
+<ResponseField name="images" type="array">
+  Array of image objects
+  
+  <Expandable title="Image object">
+    <ResponseField name="url" type="string">
+      Cloudinary image URL
+    </ResponseField>
+    
+    <ResponseField name="publicId" type="string">
+      Cloudinary public ID
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdBy" type="object">
+  Creator information (populated with contact details)
+  
+  <Expandable title="User object">
+    <ResponseField name="_id" type="string">
+      User ID
+    </ResponseField>
+    
+    <ResponseField name="username" type="string">
+      Username
+    </ResponseField>
+    
+    <ResponseField name="avatar" type="string">
+      Avatar URL
+    </ResponseField>
+    
+    <ResponseField name="phone" type="string">
+      Contact phone number
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      Contact email
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="isApproved" type="boolean">
+  Always `true` for accessible listings
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp
+</ResponseField>
+
+## Examples
+
+### Get a listing by ID
+
+```bash
+curl https://api.boundry.app/api/listings/507f1f77bcf86cd799439011
+```
+
+### Response (200 OK)
+
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "title": "Luxury Villa in Dubai Marina",
+  "description": "Stunning 4-bedroom villa with sea views",
+  "price": 2500000,
+  "location": {
+    "city": "dubai",
+    "area": "Dubai Marina"
+  },
+  "propertyType": "villa",
+  "status": "for-sale",
+  "acquiredStatus": null,
+  "bedrooms": 4,
+  "bathrooms": 3,
+  "areaSqft": 3500,
+  "images": [
+    {
+      "url": "https://res.cloudinary.com/...",
+      "publicId": "boundry/listings/xyz123"
+    }
+  ],
+  "createdBy": {
+    "_id": "507f191e810c19729de860ea",
+    "username": "johndoe",
+    "avatar": "https://res.cloudinary.com/avatar.jpg",
+    "phone": "+971501234567",
+    "email": "john@example.com"
+  },
+  "isApproved": true,
+  "createdAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+## Error Responses
+
+### Listing Not Found (404)
+
+```json
+{
+  "message": "Listing not found"
+}
+```
+
+### Listing Not Approved (403)
+
+```json
+{
+  "message": "Listing not approved"
+}
+```
+
+## Implementation Details
+
+- Implemented in `controllers/listingController.js:105`
+- Route defined in `routes/listingRoutes.js:28`
+- The `createdBy` field is populated with full contact information (`username`, `avatar`, `phone`, `email`)
+- Only listings with `isApproved: true` are returned to public users
+- Unapproved listings return a 403 Forbidden error

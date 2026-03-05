@@ -1,0 +1,355 @@
+---
+title: Admin Workflow
+description: Understanding admin permissions and moderation workflows
+---
+
+Admins have elevated privileges to moderate listings and manage users across the Boundry Backend platform.
+
+## Admin Role
+
+### Becoming an Admin
+
+Admin status is controlled by the `isAdmin` boolean field in the User model:
+
+```javascript
+// From models/userModel.js:26-29
+isAdmin: {
+  type: Boolean,
+  default: false,
+}
+```
+
+Admins can promote or demote other users via the `/api/admin/users/:id/role` endpoint.
+
+<Warning>There is no self-service admin registration. Admin status must be granted by an existing admin.</Warning>
+
+## Authorization Middleware
+
+All admin endpoints use a two-step authorization chain:
+
+```javascript
+// From routes/adminRoutes.js - example
+router.route("/users")
+  .get(authenticateToken, authorizeAdmin, getAllUsers);
+```
+
+### Step 1: `authenticateToken`
+
+Verifies the JWT and attaches `req.user`:
+
+```javascript
+// From middleware/auth.js:4-23
+export const authenticateToken = async (req, res, next) => {
+  let token = req.cookies.jwt;
+  if (token) {
+    try {
+      const decoded = verifyAccessToken(token);
+      req.user = await User.findById(decoded.userId).select("-password");
+      next();
+    } catch (error) {
+      res.status(401).json({ message: "Token Authentication Failed" });
+    }
+  } else {
+    res.status(401).json({ message: "Token not found" });
+  }
+};
+```
+
+### Step 2: `authorizeAdmin`
+
+Checks if the authenticated user is an admin:
+
+```javascript
+// From middleware/auth.js:25-39
+export const authorizeAdmin = async (req, res, next) => {
+  if (req.user) {
+    if (req.user.isAdmin) {
+      next();
+    } else {
+      res.status(403).json({ 
+        message: "Access Denied :: Admin permissions required" 
+      });
+    }
+  } else {
+    res.status(401).json({ message: "User not found" });
+  }
+};
+```
+
+<Info>The middleware assumes `req.user` is already populated by `authenticateToken`</Info>
+
+## Admin Permissions
+
+Admins have full control over listings and users:
+
+### Listing Moderation
+
+<CardGroup cols={2}>
+  <Card title="View Pending" icon="clock">
+    See all listings awaiting approval
+  </Card>
+  <Card title="Approve" icon="check">
+    Make listings publicly visible
+  </Card>
+  <Card title="Reject" icon="xmark">
+    Keep listings hidden from public
+  </Card>
+  <Card title="Delete" icon="trash">
+    Permanently remove any listing
+  </Card>
+</CardGroup>
+
+### User Management
+
+<CardGroup cols={2}>
+  <Card title="View All Users" icon="users">
+    Access complete user database
+  </Card>
+  <Card title="Change Roles" icon="user-gear">
+    Promote/demote admin status
+  </Card>
+  <Card title="Delete Users" icon="user-xmark">
+    Remove user accounts
+  </Card>
+</CardGroup>
+
+## Listing Approval Workflow
+
+<Steps>
+  <Step title="User Creates Listing">
+    New listing is created with `isApproved: false`
+    
+    ```javascript
+    // From models/listingModel.js:85-88
+    isApproved: {
+      type: Boolean,
+      default: false,
+    }
+    ```
+  </Step>
+  
+  <Step title="Admin Views Pending Queue">
+    Admin retrieves all unapproved listings:
+    
+    ```bash
+    GET /api/admin/listings/pending
+    ```
+    
+    Response includes full listing details and creator information
+  </Step>
+  
+  <Step title="Admin Reviews Content">
+    Admin evaluates:
+    - Listing accuracy and completeness
+    - Image quality and appropriateness
+    - Compliance with platform policies
+  </Step>
+  
+  <Step title="Admin Makes Decision">
+    **Option A - Approve:**
+    ```bash
+    PATCH /api/admin/listings/:id/approve
+    ```
+    Sets `isApproved: true` - listing becomes public
+    
+    **Option B - Reject:**
+    ```bash
+    PATCH /api/admin/listings/:id/reject
+    ```
+    Sets `isApproved: false` - listing remains hidden
+    
+    **Option C - Delete:**
+    ```bash
+    DELETE /api/admin/listings/:id
+    ```
+    Permanently removes listing (for policy violations)
+  </Step>
+</Steps>
+
+## User Role Management
+
+### Toggle Admin Status
+
+Admins can promote regular users to admins or demote admins to regular users:
+
+```javascript
+// From controllers/adminController.js:68-84
+const changeUserAdminStatus = async (req, res) => {
+  const { id } = req.params;
+  const user = await User.findById(id);
+  
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+  
+  // Toggle the isAdmin status
+  user.isAdmin = !user.isAdmin;
+  await user.save();
+  
+  const action = user.isAdmin ? "promoted to admin" : "demoted from admin";
+  res.status(200).json({ 
+    message: `User ${action} successfully`, 
+    user 
+  });
+};
+```
+
+<Tip>No request body needed - the endpoint automatically toggles the current status</Tip>
+
+### Delete User
+
+Admins can permanently delete user accounts:
+
+```bash
+DELETE /api/admin/users/:id
+```
+
+<Warning>This is a hard delete. User listings become orphaned (consider implementing cascade deletion or soft deletes)</Warning>
+
+## Pagination
+
+Admin list endpoints support pagination:
+
+### Pending Listings
+
+```bash
+GET /api/admin/listings/pending?page=1&limit=20
+```
+
+- Default limit: 10
+- Max limit: 100
+
+### All Users
+
+```bash
+GET /api/admin/users?page=1&limit=50
+```
+
+- Default limit: 10
+- Max limit: 100
+
+## Error Responses
+
+### 401 Unauthorized
+
+Missing or invalid JWT token:
+
+```json
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+
+### 403 Forbidden
+
+Authenticated but not an admin:
+
+```json
+{
+  "message": "Access Denied :: Admin permissions required"
+}
+```
+
+### 404 Not Found
+
+Resource doesn't exist:
+
+```json
+{
+  "message": "User not found"
+}
+```
+
+or
+
+```json
+{
+  "message": "Listing not found"
+}
+```
+
+## Admin Dashboard Data
+
+For building an admin dashboard, combine these endpoints:
+
+```javascript
+// Parallel requests for dashboard stats
+const [pendingListings, totalUsers, recentListings] = await Promise.all([
+  fetch('/api/admin/listings/pending?limit=5'),
+  fetch('/api/admin/users?limit=100'), // Get count from response
+  fetch('/api/admin/listings/pending?sort=-createdAt&limit=10')
+]);
+```
+
+## Security Considerations
+
+<CardGroup cols={2}>
+  <Card title="No Bypass" icon="shield">
+    Every admin endpoint enforces both authentication and authorization
+  </Card>
+  <Card title="Audit Trail" icon="clock-rotate-left">
+    Consider adding logging for admin actions (not implemented in source)
+  </Card>
+  <Card title="Role Persistence" icon="database">
+    Admin status stored in database - survives token refresh
+  </Card>
+  <Card title="Minimal Admins" icon="users-gear">
+    Follow principle of least privilege - only grant admin when necessary
+  </Card>
+</CardGroup>
+
+## Example: Admin Workflow
+
+```javascript
+// 1. Admin logs in
+const loginRes = await fetch('/api/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  credentials: 'include',
+  body: JSON.stringify({
+    email: 'admin@example.com',
+    password: 'adminpass123'
+  })
+});
+
+// 2. Get pending listings
+const pendingRes = await fetch('/api/admin/listings/pending', {
+  credentials: 'include'
+});
+const { listings } = await pendingRes.json();
+
+// 3. Approve a listing
+const approveRes = await fetch(`/api/admin/listings/${listings[0]._id}/approve`, {
+  method: 'PATCH',
+  credentials: 'include'
+});
+
+// 4. View all users
+const usersRes = await fetch('/api/admin/users', {
+  credentials: 'include'
+});
+const { users } = await usersRes.json();
+
+// 5. Promote a user to admin
+const promoteRes = await fetch(`/api/admin/users/${users[0]._id}/role`, {
+  method: 'PATCH',
+  credentials: 'include'
+});
+```
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Pending Listings" icon="clock" href="/api/admin/pending-listings">
+    Retrieve all unapproved listings
+  </Card>
+  <Card title="Approve Listing" icon="check" href="/api/admin/approve-listing">
+    Approve a pending listing
+  </Card>
+  <Card title="Get All Users" icon="users" href="/api/admin/get-users">
+    View all user accounts
+  </Card>
+  <Card title="Change Role" icon="user-gear" href="/api/admin/change-role">
+    Toggle user admin status
+  </Card>
+</CardGroup>

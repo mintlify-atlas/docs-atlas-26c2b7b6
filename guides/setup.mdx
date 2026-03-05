@@ -1,0 +1,295 @@
+---
+title: Setup Guide
+description: Complete setup instructions for Boundry Backend
+---
+
+This guide walks you through setting up the Boundry Backend development environment from scratch.
+
+## Prerequisites
+
+Ensure you have the following installed:
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node-js">
+    Version 16.x or higher
+  </Card>
+  <Card title="MongoDB" icon="database">
+    Version 5.x or higher (local or cloud)
+  </Card>
+  <Card title="Git" icon="git">
+    For cloning the repository
+  </Card>
+  <Card title="Cloudinary Account" icon="cloud">
+    Free tier works fine
+  </Card>
+</CardGroup>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    ```bash
+    git clone https://github.com/Raza-Aziz/Boundry-Backend.git
+    cd Boundry-Backend
+    ```
+  </Step>
+  
+  <Step title="Install Dependencies">
+    The project uses these key dependencies:
+    
+    ```json
+    {
+      "express": "^5.2.1",
+      "mongoose": "^9.1.5",
+      "jsonwebtoken": "^9.0.3",
+      "bcryptjs": "^3.0.3",
+      "cloudinary": "^2.9.0",
+      "multer": "^2.0.2",
+      "cookie-parser": "^1.4.7",
+      "cors": "^2.8.6",
+      "dotenv": "^17.2.3"
+    }
+    ```
+    
+    Install all packages:
+    
+    <CodeGroup>
+    ```bash npm
+    npm install
+    ```
+    
+    ```bash yarn
+    yarn install
+    ```
+    
+    ```bash pnpm
+    pnpm install
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Create Required Directories">
+    The application needs a temp directory for file uploads:
+    
+    ```bash
+    mkdir -p public/temp
+    ```
+    
+    <Info>This directory stores uploaded images temporarily before Cloudinary upload</Info>
+  </Step>
+  
+  <Step title="Configure Environment">
+    See the [Environment Guide](/guides/environment) for detailed configuration
+  </Step>
+  
+  <Step title="Verify MongoDB Connection">
+    Ensure MongoDB is running and accessible at your `MONGO_URI`
+    
+    **Local MongoDB:**
+    ```bash
+    # Start MongoDB service
+    sudo systemctl start mongodb
+    # or
+    brew services start mongodb-community
+    ```
+    
+    **MongoDB Atlas:**
+    - Create a free cluster at [mongodb.com/cloud/atlas](https://mongodb.com/cloud/atlas)
+    - Whitelist your IP address
+    - Create a database user
+    - Copy the connection string
+  </Step>
+</Steps>
+
+## Project Structure
+
+```
+Boundry-Backend/
+├── config/
+│   └── db.js              # MongoDB connection
+├── controllers/
+│   ├── adminController.js # Admin operations
+│   ├── authController.js  # Authentication logic
+│   ├── listingController.js
+│   └── userController.js
+├── middleware/
+│   ├── auth.js            # JWT authentication
+│   ├── ownership.js       # Listing ownership check
+│   └── upload.js          # Multer configuration
+├── models/
+│   ├── listingModel.js    # Listing schema
+│   └── userModel.js       # User schema
+├── routes/
+│   ├── adminRoutes.js
+│   ├── authRoutes.js
+│   ├── listingRoutes.js
+│   └── userRoutes.js
+├── utils/
+│   ├── bcrypt.js          # Password hashing
+│   ├── buildQuery.js      # Query builder
+│   ├── cloudinary.js      # Image upload
+│   └── jwt.js             # Token generation/verification
+├── public/temp/           # Temp file storage
+├── .env                   # Environment variables (create this)
+├── .gitignore
+├── index.js               # Application entry point
+└── package.json
+```
+
+## Running the Application
+
+### Development Mode
+
+Runs with auto-reload on file changes:
+
+```bash
+npm run backend
+```
+
+This executes:
+```json
+// From package.json:8
+"backend": "node --watch index.js"
+```
+
+<Info>Node 18.11+ required for `--watch` flag. For older versions, use `nodemon index.js`</Info>
+
+### Production Mode
+
+```bash
+NODE_ENV=production node index.js
+```
+
+<Tip>Set `NODE_ENV=production` to enable secure cookie flags</Tip>
+
+## Verify Installation
+
+If setup is successful, you should see:
+
+```
+Successfully connected to MongoDB
+App listening on port 5000
+```
+
+## CORS Configuration
+
+By default, CORS is configured for local frontend development:
+
+```javascript
+// From index.js:17-22
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  }),
+);
+```
+
+<Warning>Update `origin` in production to match your frontend domain</Warning>
+
+### Multiple Origins
+
+For multiple allowed origins:
+
+```javascript
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://yourdomain.com",
+      "https://www.yourdomain.com"
+    ],
+    credentials: true,
+  }),
+);
+```
+
+## Test the API
+
+### Health Check
+
+```bash
+curl http://localhost:5000/
+```
+
+Expected response:
+```
+Hello World
+```
+
+### Register a User
+
+```bash
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@example.com",
+    "password": "password123",
+    "phone": "+1234567890"
+  }'
+```
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="MongoDB Connection Failed">
+    **Symptoms:** `Couldn't connect to MongoDB` error
+    
+    **Solutions:**
+    - Verify MongoDB is running: `sudo systemctl status mongodb`
+    - Check `MONGO_URI` in `.env` is correct
+    - For Atlas: Ensure IP is whitelisted and credentials are correct
+    - Try: `mongodb://localhost:27017/boundry` for local setup
+  </Accordion>
+  
+  <Accordion title="Port Already in Use">
+    **Symptoms:** `EADDRINUSE: address already in use :::5000`
+    
+    **Solutions:**
+    - Change `PORT` in `.env` to another value (e.g., 5001)
+    - Kill the process using port 5000:
+      ```bash
+      # Find process
+      lsof -i :5000
+      # Kill it
+      kill -9 <PID>
+      ```
+  </Accordion>
+  
+  <Accordion title="Cloudinary Upload Fails">
+    **Symptoms:** Images not uploading, null response
+    
+    **Solutions:**
+    - Verify Cloudinary credentials in `.env`
+    - Check `public/temp/` directory exists and is writable
+    - Ensure file size is under Cloudinary limits (10MB for free tier)
+  </Accordion>
+  
+  <Accordion title="JWT Token Not Working">
+    **Symptoms:** 401 errors on protected routes
+    
+    **Solutions:**
+    - Check `JWT_ACCESS_KEY` is set in `.env`
+    - Ensure cookies are being sent: `credentials: 'include'` in fetch
+    - Verify cookie domain matches (localhost to localhost)
+    - Check token hasn't expired (1 hour lifetime)
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Environment Variables" icon="gear" href="/guides/environment">
+    Configure all required environment variables
+  </Card>
+  <Card title="Database Schema" icon="database" href="/guides/database">
+    Understand MongoDB models and indexes
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Make your first API request
+  </Card>
+  <Card title="Authentication" icon="lock" href="/authentication">
+    Learn about JWT authentication
+  </Card>
+</CardGroup>

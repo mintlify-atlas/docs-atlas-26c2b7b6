@@ -1,0 +1,209 @@
+---
+title: "Get Pending Listings"
+api: "GET /api/admin/listings/pending"
+description: "Retrieve all listings awaiting admin approval with pagination support"
+---
+
+## Authentication
+
+This endpoint requires:
+- Valid JWT token (via cookie)
+- Admin role (`isAdmin: true`)
+
+All admin endpoints use two middleware layers:
+1. `authenticateToken` - Verifies JWT token from cookies
+2. `authorizeAdmin` - Checks user has admin privileges
+
+## Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of listings per page (max 100)
+</ParamField>
+
+## Response
+
+<ResponseField name="pendingListings" type="array">
+  Array of pending listings with creator information
+  
+  <ResponseField name="_id" type="string">
+    Listing ID
+  </ResponseField>
+  
+  <ResponseField name="title" type="string">
+    Listing title
+  </ResponseField>
+  
+  <ResponseField name="description" type="string">
+    Listing description
+  </ResponseField>
+  
+  <ResponseField name="price" type="number">
+    Property price
+  </ResponseField>
+  
+  <ResponseField name="location" type="object">
+    Property location details
+    
+    <ResponseField name="city" type="string">
+      City name (lowercase)
+    </ResponseField>
+    
+    <ResponseField name="area" type="string">
+      Area/neighborhood
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="propertyType" type="string">
+    Type of property: `house`, `apartment`, `villa`, `studio`, or `office`
+  </ResponseField>
+  
+  <ResponseField name="status" type="string">
+    Listing status: `for-sale` or `for-rent`
+  </ResponseField>
+  
+  <ResponseField name="bedrooms" type="number">
+    Number of bedrooms
+  </ResponseField>
+  
+  <ResponseField name="bathrooms" type="number">
+    Number of bathrooms
+  </ResponseField>
+  
+  <ResponseField name="areaSqft" type="number">
+    Property area in square feet
+  </ResponseField>
+  
+  <ResponseField name="images" type="array">
+    Array of image objects with url and publicId
+  </ResponseField>
+  
+  <ResponseField name="createdBy" type="object">
+    Creator information (populated)
+    
+    <ResponseField name="username" type="string">
+      Creator's username
+    </ResponseField>
+    
+    <ResponseField name="avatar" type="object">
+      Creator's avatar
+    </ResponseField>
+    
+    <ResponseField name="phone" type="string">
+      Creator's phone number
+    </ResponseField>
+    
+    <ResponseField name="email" type="string">
+      Creator's email
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="isApproved" type="boolean">
+    Approval status (always false for pending listings)
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="string">
+    Creation timestamp
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="totalPendingListings" type="number">
+  Total count of pending listings
+</ResponseField>
+
+<ResponseField name="page" type="number">
+  Current page number
+</ResponseField>
+
+<ResponseField name="pages" type="number">
+  Total number of pages
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.boundry.com/api/admin/listings/pending?page=1&limit=20" \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/admin/listings/pending?page=1&limit=20', {
+  method: 'GET',
+  credentials: 'include' // Include cookies
+});
+
+const data = await response.json();
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Success
+{
+  "pendingListings": [
+    {
+      "_id": "64a1b2c3d4e5f6789abcdef0",
+      "title": "Modern 3BR Apartment in Downtown",
+      "description": "Spacious apartment with city views",
+      "price": 250000,
+      "location": {
+        "city": "karachi",
+        "area": "Clifton"
+      },
+      "propertyType": "apartment",
+      "status": "for-sale",
+      "bedrooms": 3,
+      "bathrooms": 2,
+      "areaSqft": 1500,
+      "images": [
+        {
+          "url": "https://cloudinary.com/image1.jpg",
+          "publicId": "listings/abc123"
+        }
+      ],
+      "createdBy": {
+        "_id": "64a1b2c3d4e5f6789abcdef1",
+        "username": "johndoe",
+        "email": "john@example.com",
+        "phone": "+923001234567",
+        "avatar": {
+          "url": "https://cloudinary.com/avatar.jpg"
+        }
+      },
+      "isApproved": false,
+      "createdAt": "2024-03-15T10:30:00.000Z"
+    }
+  ],
+  "totalPendingListings": 45,
+  "page": 1,
+  "pages": 3
+}
+```
+
+```json 404 No Listings
+{
+  "message": "No listings found"
+}
+```
+
+```json 401 Unauthorized
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+
+```json 403 Forbidden
+{
+  "message": "Access Denied :: Admin permissions required"
+}
+```
+</ResponseExample>
+
+## Implementation Details
+
+- Listings are filtered by `isApproved: false`
+- Results are sorted by `createdAt` in ascending order (oldest first)
+- Creator information is populated with username, avatar, phone, and email
+- Limit parameter is capped at 100 to prevent excessive data retrieval
+- Returns 404 if no pending listings exist

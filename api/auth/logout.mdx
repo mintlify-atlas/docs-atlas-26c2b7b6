@@ -1,0 +1,70 @@
+---
+title: 'POST /api/auth/logout'
+description: 'Log out the current authenticated user'
+---
+
+## Authentication
+
+<Warning>
+  This endpoint requires authentication. Include the JWT token in an HTTP-only cookie named `jwt`.
+</Warning>
+
+The request must include a valid JWT token that was obtained during login or registration.
+
+## Request
+
+This endpoint does not accept any request parameters or body.
+
+## Response
+
+<ResponseField name="message" type="string">
+  A confirmation message indicating successful logout.
+</ResponseField>
+
+<Note>
+  Upon successful logout, the JWT cookie is cleared by setting it to an empty value with an expiry date in the past (January 1, 1970).
+</Note>
+
+<RequestExample>
+
+```bash cURL
+curl -X POST https://api.boundry.com/api/auth/logout \
+  -H "Content-Type: application/json" \
+  -b "jwt=your_jwt_token_here"
+```
+
+```javascript JavaScript
+const response = await fetch('https://api.boundry.com/api/auth/logout', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  credentials: 'include' // Important for cookies
+});
+
+const data = await response.json();
+```
+
+</RequestExample>
+
+<ResponseExample>
+
+```json Success Response (200)
+{
+  "message": "Logged out successfully"
+}
+```
+
+```json Error - Token Not Found (401)
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+
+```json Error - Token Invalid (401)
+{
+  "message": "Token Authentication Failed :: Token not verified"
+}
+```
+
+</ResponseExample>

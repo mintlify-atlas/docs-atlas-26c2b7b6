@@ -1,0 +1,284 @@
+---
+title: "Create Listing"
+api: "POST /api/listings"
+description: "Create a new property listing with image uploads"
+---
+
+## Overview
+
+Creates a new property listing. Requires authentication and supports uploading up to 10 images.
+
+<Note>
+  All newly created listings are set to `isApproved: false` and require admin approval before appearing in public listings.
+</Note>
+
+## Authentication
+
+**Required:** Yes (JWT token in cookies)
+
+The `createdBy` field is automatically set from the authenticated user.
+
+## Content Type
+
+```
+multipart/form-data
+```
+
+## Request Body
+
+### Required Fields
+
+<ParamField body="title" type="string" required>
+  Listing title
+  
+  Trimmed automatically
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Detailed description of the property
+  
+  Trimmed automatically
+</ParamField>
+
+<ParamField body="price" type="number" required>
+  Price of the property
+  
+  **Validation:** Must be at least 1
+</ParamField>
+
+<ParamField body="location" type="object" required>
+  Location information
+  
+  <Expandable title="Location fields">
+    <ParamField body="location.city" type="string" required>
+      City name (automatically converted to lowercase)
+    </ParamField>
+    
+    <ParamField body="location.area" type="string" required>
+      Area or neighborhood name
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="propertyType" type="string" required>
+  Type of property
+  
+  **Allowed values:** `house`, `apartment`, `villa`, `studio`, `office`
+  
+  Automatically converted to lowercase
+</ParamField>
+
+<ParamField body="status" type="string" required>
+  Listing status
+  
+  **Allowed values:** `for-sale`, `for-rent`
+  
+  Automatically converted to lowercase
+</ParamField>
+
+<ParamField body="bedrooms" type="number" required>
+  Number of bedrooms
+  
+  **Validation:** Must be at least 1
+</ParamField>
+
+<ParamField body="bathrooms" type="number" required>
+  Number of bathrooms
+  
+  **Validation:** Must be at least 1
+</ParamField>
+
+<ParamField body="areaSqft" type="number" required>
+  Area in square feet
+  
+  **Validation:** Must be a positive number
+</ParamField>
+
+<ParamField body="images" type="file[]" required>
+  Property images (multipart upload)
+  
+  **Maximum:** 10 images
+  
+  **Required:** At least 1 image
+  
+  Images are uploaded to Cloudinary and stored as `{ url, publicId }` objects
+</ParamField>
+
+## Response
+
+<ResponseField name="_id" type="string">
+  Unique listing identifier
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Listing title
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Listing description
+</ResponseField>
+
+<ResponseField name="price" type="number">
+  Listing price
+</ResponseField>
+
+<ResponseField name="location" type="object">
+  <Expandable title="Location object">
+    <ResponseField name="city" type="string">
+      City name (lowercase)
+    </ResponseField>
+    
+    <ResponseField name="area" type="string">
+      Area name
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="propertyType" type="string">
+  Type of property
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Listing status
+</ResponseField>
+
+<ResponseField name="bedrooms" type="number">
+  Number of bedrooms
+</ResponseField>
+
+<ResponseField name="bathrooms" type="number">
+  Number of bathrooms
+</ResponseField>
+
+<ResponseField name="areaSqft" type="number">
+  Area in square feet
+</ResponseField>
+
+<ResponseField name="images" type="array">
+  Array of uploaded image objects
+  
+  <Expandable title="Image object">
+    <ResponseField name="url" type="string">
+      Cloudinary image URL
+    </ResponseField>
+    
+    <ResponseField name="publicId" type="string">
+      Cloudinary public ID for management
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="createdBy" type="string">
+  User ID of the creator
+</ResponseField>
+
+<ResponseField name="isApproved" type="boolean">
+  Always `false` for newly created listings
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp
+</ResponseField>
+
+## Examples
+
+### Create a listing with form data
+
+```bash
+curl -X POST https://api.boundry.app/api/listings \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN" \
+  -F "title=Luxury Villa in Dubai Marina" \
+  -F "description=Stunning 4-bedroom villa with sea views" \
+  -F "price=2500000" \
+  -F "location[city]=dubai" \
+  -F "location[area]=Dubai Marina" \
+  -F "propertyType=villa" \
+  -F "status=for-sale" \
+  -F "bedrooms=4" \
+  -F "bathrooms=3" \
+  -F "areaSqft=3500" \
+  -F "images=@/path/to/image1.jpg" \
+  -F "images=@/path/to/image2.jpg" \
+  -F "images=@/path/to/image3.jpg"
+```
+
+### Response (201 Created)
+
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "title": "Luxury Villa in Dubai Marina",
+  "description": "Stunning 4-bedroom villa with sea views",
+  "price": 2500000,
+  "location": {
+    "city": "dubai",
+    "area": "Dubai Marina"
+  },
+  "propertyType": "villa",
+  "status": "for-sale",
+  "bedrooms": 4,
+  "bathrooms": 3,
+  "areaSqft": 3500,
+  "images": [
+    {
+      "url": "https://res.cloudinary.com/...",
+      "publicId": "boundry/listings/xyz123"
+    },
+    {
+      "url": "https://res.cloudinary.com/...",
+      "publicId": "boundry/listings/abc456"
+    },
+    {
+      "url": "https://res.cloudinary.com/...",
+      "publicId": "boundry/listings/def789"
+    }
+  ],
+  "createdBy": "507f191e810c19729de860ea",
+  "isApproved": false,
+  "createdAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+## Error Responses
+
+### Missing Required Fields (400)
+
+```json
+{
+  "message": "Please fill all required fields"
+}
+```
+
+### No Images Uploaded (400)
+
+```json
+{
+  "message": "Please upload at least one image."
+}
+```
+
+### Image Upload Failed (500)
+
+```json
+{
+  "message": "Failed to upload images to Cloudinary"
+}
+```
+
+### Unauthorized (401)
+
+```json
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+
+## Implementation Details
+
+- Implemented in `controllers/listingController.js:122`
+- Route defined in `routes/listingRoutes.js:18`
+- Uses `upload.array("images", 10)` middleware for handling up to 10 images
+- Images are stored temporarily in `./public/temp` before Cloudinary upload
+- All images are uploaded to Cloudinary in parallel using `Promise.all`
+- Failed image uploads are filtered out; at least one successful upload is required
+- Location fields are automatically lowercased/trimmed per schema validation

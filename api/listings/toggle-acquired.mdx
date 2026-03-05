@@ -1,0 +1,167 @@
+---
+title: "Toggle Acquired Status"
+api: "PATCH /api/listings/:id/acquired-status"
+description: "Mark a listing as sold/rented or revert to available"
+---
+
+## Overview
+
+Toggles the acquisition status of a listing between sold/rented and available. Requires authentication and ownership.
+
+## Authentication
+
+**Required:** Yes (JWT token in cookies)
+
+## Authorization
+
+Only the listing creator or an admin can toggle the status. This is enforced by the `checkOwnership` middleware.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The MongoDB ObjectId of the listing
+</ParamField>
+
+## Request Body
+
+<ParamField body="acquiredStatus" type="string" optional>
+  Explicitly set the acquisition status
+  
+  **Allowed values:** `sold`, `rented`, `null`
+  
+  If not provided, the status will be automatically toggled based on the listing's `status` field.
+</ParamField>
+
+## Toggle Logic
+
+If `acquiredStatus` is not provided in the request:
+
+### For `for-sale` listings:
+- If current `acquiredStatus` is `"sold"` → set to `null` (available)
+- If current `acquiredStatus` is `null` → set to `"sold"`
+
+### For `for-rent` listings:
+- If current `acquiredStatus` is `"rented"` → set to `null` (available)
+- If current `acquiredStatus` is `null` → set to `"rented"`
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success message: "Status changed"
+</ResponseField>
+
+<ResponseField name="listing" type="object">
+  The updated listing object with new `acquiredStatus`
+</ResponseField>
+
+## Examples
+
+### Auto-toggle: Mark a for-sale listing as sold
+
+```bash
+curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011/acquired-status \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### Response (200 OK)
+
+```json
+{
+  "message": "Status changed",
+  "listing": {
+    "_id": "507f1f77bcf86cd799439011",
+    "title": "Luxury Villa in Dubai Marina",
+    "status": "for-sale",
+    "acquiredStatus": "sold",
+    "price": 2500000,
+    "location": {
+      "city": "dubai",
+      "area": "Dubai Marina"
+    },
+    "propertyType": "villa",
+    "bedrooms": 4,
+    "bathrooms": 3,
+    "areaSqft": 3500,
+    "images": [
+      {
+        "url": "https://res.cloudinary.com/...",
+        "publicId": "boundry/listings/xyz123"
+      }
+    ],
+    "createdBy": "507f191e810c19729de860ea",
+    "isApproved": true,
+    "createdAt": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+### Explicitly set status to rented
+
+```bash
+curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439012/acquired-status \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"acquiredStatus": "rented"}'
+```
+
+### Revert to available (set to null)
+
+```bash
+curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011/acquired-status \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"acquiredStatus": null}'
+```
+
+## Error Responses
+
+### Listing Not Found (404)
+
+```json
+{
+  "message": "Listing not found"
+}
+```
+
+### Access Denied (403)
+
+```json
+{
+  "message": "Access denied."
+}
+```
+
+Returned when the authenticated user is not the owner or an admin.
+
+### Unauthorized (401)
+
+```json
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+
+### Server Error (500)
+
+```json
+{
+  "message": "Could not toggle status :: [error details]"
+}
+```
+
+## Implementation Details
+
+- Implemented in `controllers/listingController.js:253`
+- Route defined in `routes/listingRoutes.js:22`
+- Uses `checkOwnership` middleware to verify ownership
+- The listing remains in the system (not deleted) when marked as sold/rented
+- Sold/rented listings can be filtered in the "Get User's Listings" endpoint using `status=sold`
+- The `isApproved` status is **not** affected by this operation
+
+## Use Cases
+
+1. **Mark as sold/rented:** Agent closes a deal and marks the listing as no longer available
+2. **Revert to available:** Deal falls through, listing becomes available again
+3. **Explicit control:** Frontend provides UI to set exact status rather than toggling

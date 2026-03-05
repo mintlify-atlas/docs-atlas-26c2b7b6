@@ -1,0 +1,235 @@
+---
+title: "Get All Listings"
+api: "GET /api/listings"
+description: "Retrieve all approved public listings with pagination, filtering, and sorting"
+---
+
+## Overview
+
+Fetches all approved listings that are visible to the public. Supports advanced filtering, sorting, and pagination.
+
+## Query Parameters
+
+### Pagination
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of listings per page (maximum: 100)
+</ParamField>
+
+### Filtering
+
+<ParamField query="search" type="string">
+  Case-insensitive search in listing titles
+</ParamField>
+
+<ParamField query="city" type="string">
+  Filter by city (lowercase)
+  
+  Example: `dubai`, `abu-dhabi`
+</ParamField>
+
+<ParamField query="minPrice" type="number">
+  Minimum price filter
+</ParamField>
+
+<ParamField query="maxPrice" type="number">
+  Maximum price filter
+</ParamField>
+
+<ParamField query="bedrooms" type="number">
+  Filter by exact number of bedrooms
+</ParamField>
+
+<ParamField query="bathrooms" type="number">
+  Filter by exact number of bathrooms
+</ParamField>
+
+<ParamField query="minAreaSqft" type="number">
+  Minimum area in square feet
+</ParamField>
+
+<ParamField query="maxAreaSqft" type="number">
+  Maximum area in square feet
+</ParamField>
+
+<ParamField query="propertyType" type="string">
+  Filter by property type
+  
+  **Allowed values:** `house`, `apartment`, `villa`, `studio`, `office`
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by listing status
+  
+  **Allowed values:** `for-sale`, `for-rent`
+</ParamField>
+
+### Sorting
+
+<ParamField query="sortBy" type="string" default="createdAt">
+  Field to sort by
+  
+  **Allowed values:** `createdAt`, `price`, `areaSqft`
+</ParamField>
+
+<ParamField query="sortOrder" type="string" default="desc">
+  Sort order
+  
+  **Allowed values:** `asc`, `desc`
+</ParamField>
+
+## Response
+
+<ResponseField name="listings" type="array">
+  Array of listing objects
+  
+  <Expandable title="Listing object">
+    <ResponseField name="_id" type="string">
+      Unique listing identifier
+    </ResponseField>
+    
+    <ResponseField name="title" type="string">
+      Listing title
+    </ResponseField>
+    
+    <ResponseField name="description" type="string">
+      Listing description
+    </ResponseField>
+    
+    <ResponseField name="price" type="number">
+      Listing price
+    </ResponseField>
+    
+    <ResponseField name="location" type="object">
+      <Expandable title="Location object">
+        <ResponseField name="city" type="string">
+          City name (lowercase)
+        </ResponseField>
+        
+        <ResponseField name="area" type="string">
+          Area name
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="propertyType" type="string">
+      Type of property: `house`, `apartment`, `villa`, `studio`, or `office`
+    </ResponseField>
+    
+    <ResponseField name="status" type="string">
+      Listing status: `for-sale` or `for-rent`
+    </ResponseField>
+    
+    <ResponseField name="acquiredStatus" type="string | null">
+      Acquisition status: `sold`, `rented`, or `null`
+    </ResponseField>
+    
+    <ResponseField name="bedrooms" type="number">
+      Number of bedrooms
+    </ResponseField>
+    
+    <ResponseField name="bathrooms" type="number">
+      Number of bathrooms
+    </ResponseField>
+    
+    <ResponseField name="areaSqft" type="number">
+      Area in square feet
+    </ResponseField>
+    
+    <ResponseField name="images" type="array">
+      Array of image objects
+      
+      <Expandable title="Image object">
+        <ResponseField name="url" type="string">
+          Cloudinary image URL
+        </ResponseField>
+        
+        <ResponseField name="publicId" type="string">
+          Cloudinary public ID
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="createdBy" type="object">
+      Creator information (populated)
+      
+      <Expandable title="User object">
+        <ResponseField name="_id" type="string">
+          User ID
+        </ResponseField>
+        
+        <ResponseField name="username" type="string">
+          Username
+        </ResponseField>
+        
+        <ResponseField name="avatar" type="string">
+          Avatar URL
+        </ResponseField>
+      </Expandable>
+    </ResponseField>
+    
+    <ResponseField name="isApproved" type="boolean">
+      Always `true` for public listings
+    </ResponseField>
+    
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="totalMatches" type="number">
+  Total number of listings matching the filters
+</ResponseField>
+
+<ResponseField name="page" type="number">
+  Current page number
+</ResponseField>
+
+<ResponseField name="pages" type="number">
+  Total number of pages
+</ResponseField>
+
+## Examples
+
+### Get all listings (default pagination)
+
+```bash
+curl https://api.boundry.app/api/listings
+```
+
+### Search for apartments in Dubai
+
+```bash
+curl "https://api.boundry.app/api/listings?city=dubai&propertyType=apartment"
+```
+
+### Filter by price range with pagination
+
+```bash
+curl "https://api.boundry.app/api/listings?minPrice=500000&maxPrice=1000000&page=1&limit=20"
+```
+
+### Sort by price (lowest first)
+
+```bash
+curl "https://api.boundry.app/api/listings?sortBy=price&sortOrder=asc"
+```
+
+### Complex query with multiple filters
+
+```bash
+curl "https://api.boundry.app/api/listings?city=dubai&propertyType=villa&bedrooms=4&bathrooms=3&minPrice=1000000&maxPrice=2000000&sortBy=price&sortOrder=asc&page=1&limit=10"
+```
+
+## Implementation Details
+
+- Only approved listings (`isApproved: true`) are returned
+- Maximum limit is capped at 100 items per request
+- Default sort is by `createdAt` in descending order (newest first)
+- The `createdBy` field is populated with `username` and `avatar` only
+- Filtering logic is handled by `buildQuery` utility (see `utils/buildQuery.js:1`)

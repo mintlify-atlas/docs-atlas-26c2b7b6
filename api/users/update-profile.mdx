@@ -1,0 +1,215 @@
+---
+title: "Update User Profile"
+api: "PATCH /api/users/profile"
+description: "Update the authenticated user's profile information including avatar upload"
+---
+
+Allows authenticated users to update their profile information including username, email, phone, password, and avatar image. All fields are optional - only provided fields will be updated.
+
+## Authentication
+
+<Warning>
+  This endpoint requires authentication. A valid JWT token must be provided in cookies.
+</Warning>
+
+The request must include a valid JWT token in the `jwt` cookie. The token is verified using the `authenticateToken` middleware.
+
+## Request Body
+
+<ParamField body="username" type="string" optional>
+  New username for the user (will be stored in lowercase)
+</ParamField>
+
+<ParamField body="email" type="string" optional>
+  New email address (must be valid email format, stored in lowercase)
+  
+  <Expandable title="validation">
+    Must match email regex pattern. Must be unique across all users.
+  </Expandable>
+</ParamField>
+
+<ParamField body="phone" type="string" optional>
+  New phone number (must match E.164 format: `+[1-9][0-9]{7,14}`)
+  
+  <Expandable title="validation">
+    Must be a valid phone number in international format. Must be unique across all users.
+  </Expandable>
+</ParamField>
+
+<ParamField body="password" type="string" optional>
+  New password for the user account
+  
+  <Expandable title="validation">
+    Minimum 8 characters required. Will be hashed using bcrypt before storage.
+  </Expandable>
+</ParamField>
+
+<ParamField body="avatar" type="file" optional>
+  Avatar image file to upload
+  
+  <Expandable title="details">
+    Uploaded to Cloudinary with automatic format and quality optimization. The response will include the optimized URL and public ID.
+  </Expandable>
+</ParamField>
+
+## Response
+
+<ResponseField name="_id" type="string" required>
+  User's unique identifier
+</ResponseField>
+
+<ResponseField name="username" type="string" required>
+  Updated username (lowercase)
+</ResponseField>
+
+<ResponseField name="email" type="string" required>
+  Updated email address (lowercase)
+</ResponseField>
+
+<ResponseField name="phone" type="string" required>
+  Updated phone number
+</ResponseField>
+
+<ResponseField name="avatar" type="object">
+  Updated avatar information
+  
+  <Expandable title="avatar properties">
+    <ResponseField name="url" type="string">
+      Cloudinary URL with automatic format and quality optimization (`f_auto,q_auto`)
+    </ResponseField>
+    
+    <ResponseField name="publicId" type="string">
+      Cloudinary public ID for the uploaded avatar
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="isAdmin" type="boolean">
+  Whether the user has admin privileges
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp of when the user account was created
+</ResponseField>
+
+<RequestExample>
+```bash cURL (JSON)
+curl -X PATCH https://api.boundry.com/api/users/profile \
+  -H "Cookie: jwt=your_jwt_token_here" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "newusername",
+    "email": "newemail@example.com",
+    "phone": "+1234567890"
+  }'
+```
+
+```bash cURL (Multipart with Avatar)
+curl -X PATCH https://api.boundry.com/api/users/profile \
+  -H "Cookie: jwt=your_jwt_token_here" \
+  -F "username=newusername" \
+  -F "email=newemail@example.com" \
+  -F "phone=+1234567890" \
+  -F "avatar=@/path/to/avatar.jpg"
+```
+
+```javascript JavaScript
+const formData = new FormData();
+formData.append('username', 'newusername');
+formData.append('email', 'newemail@example.com');
+formData.append('phone', '+1234567890');
+formData.append('avatar', avatarFile);
+
+const response = await fetch('https://api.boundry.com/api/users/profile', {
+  method: 'PATCH',
+  credentials: 'include',
+  body: formData
+});
+
+const updatedProfile = await response.json();
+```
+</RequestExample>
+
+<ResponseExample>
+```json Success Response (200)
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "username": "newusername",
+  "email": "newemail@example.com",
+  "phone": "+1234567890",
+  "avatar": {
+    "url": "https://res.cloudinary.com/demo/image/upload/f_auto,q_auto/v1234567890/avatars/user123.jpg",
+    "publicId": "avatars/user123"
+  },
+  "isAdmin": false,
+  "createdAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+```json User Not Found (404)
+{
+  "message": "User not found"
+}
+```
+
+```json Authentication Failed (401)
+{
+  "message": "Token Authentication Failed :: Token not verified"
+}
+```
+
+```json No Token Provided (401)
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+</ResponseExample>
+
+## Error Responses
+
+| Status Code | Description |
+|-------------|-------------|
+| 200 | Profile updated successfully |
+| 401 | Authentication failed - invalid or missing token |
+| 404 | User not found in database |
+| 400 | Validation error (invalid email, phone, or password length) |
+
+## Validation Rules
+
+### Email
+- Must be a valid email format matching the regex pattern
+- Converted to lowercase and trimmed
+- Must be unique across all users
+
+### Phone
+- Must match pattern: `^\+?[1-9][0-9]{7,14}$` (E.164 format)
+- Must be unique across all users
+- Whitespace is trimmed
+
+### Password
+- Minimum 8 characters required
+- Automatically hashed using bcrypt before storage
+- Never returned in response
+
+### Username
+- Converted to lowercase
+- Must be unique across all users
+
+### Avatar
+- Uploaded to Cloudinary
+- Automatically optimized with `f_auto,q_auto` transformations
+- Both URL and public ID are stored
+
+## Implementation Details
+
+This endpoint is implemented in `controllers/userController.js:17` as `updateProfile`. It:
+
+1. Retrieves the authenticated user from the database
+2. Updates only the fields provided in the request body (preserves existing values for omitted fields)
+3. If an avatar file is uploaded, it is sent to Cloudinary and the URL is optimized for automatic format and quality
+4. If a password is provided, it is hashed using bcrypt before saving
+5. Saves the updated user document and returns the complete user object
+
+<Info>
+  The endpoint uses a partial update strategy - only fields included in the request will be modified. This allows updating individual fields without affecting others.
+</Info>

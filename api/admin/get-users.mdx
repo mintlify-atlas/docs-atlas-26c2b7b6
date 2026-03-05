@@ -1,0 +1,159 @@
+---
+title: "Get All Users"
+api: "GET /api/admin/users"
+description: "Retrieve all users in the system with pagination support"
+---
+
+## Authentication
+
+This endpoint requires:
+- Valid JWT token (via cookie)
+- Admin role (`isAdmin: true`)
+
+## Query Parameters
+
+<ParamField query="page" type="number" default="1">
+  Page number for pagination
+</ParamField>
+
+<ParamField query="limit" type="number" default="10">
+  Number of users per page (max 100)
+</ParamField>
+
+## Response
+
+<ResponseField name="users" type="array">
+  Array of user objects (passwords excluded)
+  
+  <ResponseField name="_id" type="string">
+    User ID
+  </ResponseField>
+  
+  <ResponseField name="username" type="string">
+    Username (lowercase)
+  </ResponseField>
+  
+  <ResponseField name="email" type="string">
+    User email (lowercase, unique)
+  </ResponseField>
+  
+  <ResponseField name="phone" type="string">
+    Phone number (unique)
+  </ResponseField>
+  
+  <ResponseField name="isAdmin" type="boolean">
+    Admin status
+  </ResponseField>
+  
+  <ResponseField name="avatar" type="object">
+    Avatar information
+    
+    <ResponseField name="url" type="string">
+      Avatar image URL
+    </ResponseField>
+    
+    <ResponseField name="publicId" type="string">
+      Cloudinary public ID
+    </ResponseField>
+  </ResponseField>
+  
+  <ResponseField name="createdAt" type="string">
+    Account creation timestamp
+  </ResponseField>
+</ResponseField>
+
+<ResponseField name="userCount" type="number">
+  Total number of users in the system
+</ResponseField>
+
+<ResponseField name="page" type="number">
+  Current page number
+</ResponseField>
+
+<ResponseField name="pages" type="number">
+  Total number of pages
+</ResponseField>
+
+<RequestExample>
+```bash cURL
+curl -X GET "https://api.boundry.com/api/admin/users?page=1&limit=20" \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN"
+```
+
+```javascript JavaScript
+const response = await fetch('/api/admin/users?page=1&limit=20', {
+  method: 'GET',
+  credentials: 'include'
+});
+
+const data = await response.json();
+```
+</RequestExample>
+
+<ResponseExample>
+```json 200 Success
+{
+  "users": [
+    {
+      "_id": "64a1b2c3d4e5f6789abcdef1",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "phone": "+923001234567",
+      "isAdmin": false,
+      "avatar": {
+        "url": "https://cloudinary.com/avatar.jpg",
+        "publicId": "avatars/user123"
+      },
+      "createdAt": "2024-01-15T08:30:00.000Z"
+    },
+    {
+      "_id": "64a1b2c3d4e5f6789abcdef2",
+      "username": "janeadmin",
+      "email": "jane@example.com",
+      "phone": "+923007654321",
+      "isAdmin": true,
+      "avatar": {
+        "url": "https://cloudinary.com/avatar2.jpg",
+        "publicId": "avatars/user456"
+      },
+      "createdAt": "2024-01-10T12:00:00.000Z"
+    }
+  ],
+  "userCount": 156,
+  "page": 1,
+  "pages": 8
+}
+```
+
+```json 404 Not Found
+{
+  "message": "No users found"
+}
+```
+
+```json 401 Unauthorized
+{
+  "message": "Token Authentication Failed :: Token not verified"
+}
+```
+
+```json 403 Forbidden
+{
+  "message": "Access Denied :: Admin permissions required"
+}
+```
+
+```json 500 Server Error
+{
+  "message": "Error details"
+}
+```
+</ResponseExample>
+
+## Implementation Details
+
+- Password field is excluded from all results using `.select("-password")`
+- Uses `Promise.all` to fetch users and count in parallel for better performance
+- Limit parameter is capped at 100 to prevent excessive data retrieval
+- Results include both admin and regular users
+- No specific sorting is applied (uses default MongoDB order)

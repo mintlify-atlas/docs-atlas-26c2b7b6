@@ -1,0 +1,270 @@
+---
+title: "Update Listing"
+api: "PATCH /api/listings/:id"
+description: "Update an existing listing (requires ownership)"
+---
+
+## Overview
+
+Updates an existing listing. Requires authentication and ownership verification.
+
+<Warning>
+  After updating, the listing's `isApproved` status is automatically set to `false` and requires re-approval by an admin.
+</Warning>
+
+## Authentication
+
+**Required:** Yes (JWT token in cookies)
+
+## Authorization
+
+Only the listing creator or an admin can update a listing. This is enforced by the `checkOwnership` middleware.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The MongoDB ObjectId of the listing to update
+</ParamField>
+
+## Content Type
+
+```
+multipart/form-data
+```
+
+(Optional, only if uploading new images)
+
+## Request Body
+
+### Required Fields
+
+All fields from the original listing must be provided, even if not changed.
+
+<ParamField body="title" type="string" required>
+  Listing title
+</ParamField>
+
+<ParamField body="description" type="string" required>
+  Listing description
+</ParamField>
+
+<ParamField body="price" type="number" required>
+  Listing price
+</ParamField>
+
+<ParamField body="location" type="object" required>
+  Location information
+  
+  <Expandable title="Location fields">
+    <ParamField body="location.city" type="string" required>
+      City name
+    </ParamField>
+    
+    <ParamField body="location.area" type="string" required>
+      Area name
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField body="propertyType" type="string" required>
+  Type of property
+  
+  **Allowed values:** `house`, `apartment`, `villa`, `studio`, `office`
+</ParamField>
+
+<ParamField body="bedrooms" type="number" required>
+  Number of bedrooms
+</ParamField>
+
+<ParamField body="bathrooms" type="number" required>
+  Number of bathrooms
+</ParamField>
+
+<ParamField body="areaSqft" type="number" required>
+  Area in square feet
+</ParamField>
+
+### Optional Fields
+
+<ParamField body="images" type="file[]">
+  Additional property images (multipart upload)
+  
+  **Note:** New images are appended to existing images, not replaced
+</ParamField>
+
+## Response
+
+<ResponseField name="_id" type="string">
+  Listing identifier
+</ResponseField>
+
+<ResponseField name="title" type="string">
+  Updated title
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Updated description
+</ResponseField>
+
+<ResponseField name="price" type="number">
+  Updated price
+</ResponseField>
+
+<ResponseField name="location" type="object">
+  Updated location
+</ResponseField>
+
+<ResponseField name="propertyType" type="string">
+  Updated property type
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Listing status (unchanged)
+</ResponseField>
+
+<ResponseField name="bedrooms" type="number">
+  Updated bedrooms
+</ResponseField>
+
+<ResponseField name="bathrooms" type="number">
+  Updated bathrooms
+</ResponseField>
+
+<ResponseField name="areaSqft" type="number">
+  Updated area
+</ResponseField>
+
+<ResponseField name="images" type="array">
+  Array of all images (old + new)
+</ResponseField>
+
+<ResponseField name="createdBy" type="string">
+  Creator ID (unchanged)
+</ResponseField>
+
+<ResponseField name="isApproved" type="boolean">
+  Always set to `false` after update
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  Original creation timestamp
+</ResponseField>
+
+## Examples
+
+### Update listing details
+
+```bash
+curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011 \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN" \
+  -F "title=Updated Luxury Villa" \
+  -F "description=Newly renovated with modern amenities" \
+  -F "price=2800000" \
+  -F "location[city]=dubai" \
+  -F "location[area]=Dubai Marina" \
+  -F "propertyType=villa" \
+  -F "bedrooms=4" \
+  -F "bathrooms=4" \
+  -F "areaSqft=3800"
+```
+
+### Update with additional images
+
+```bash
+curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011 \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN" \
+  -F "title=Updated Luxury Villa" \
+  -F "description=Newly renovated with modern amenities" \
+  -F "price=2800000" \
+  -F "location[city]=dubai" \
+  -F "location[area]=Dubai Marina" \
+  -F "propertyType=villa" \
+  -F "bedrooms=4" \
+  -F "bathrooms=4" \
+  -F "areaSqft=3800" \
+  -F "images=@/path/to/new-image1.jpg" \
+  -F "images=@/path/to/new-image2.jpg"
+```
+
+### Response (200 OK)
+
+```json
+{
+  "_id": "507f1f77bcf86cd799439011",
+  "title": "Updated Luxury Villa",
+  "description": "Newly renovated with modern amenities",
+  "price": 2800000,
+  "location": {
+    "city": "dubai",
+    "area": "Dubai Marina"
+  },
+  "propertyType": "villa",
+  "status": "for-sale",
+  "bedrooms": 4,
+  "bathrooms": 4,
+  "areaSqft": 3800,
+  "images": [
+    {
+      "url": "https://res.cloudinary.com/old-image.jpg",
+      "publicId": "boundry/listings/old123"
+    },
+    {
+      "url": "https://res.cloudinary.com/new-image1.jpg",
+      "publicId": "boundry/listings/new456"
+    },
+    {
+      "url": "https://res.cloudinary.com/new-image2.jpg",
+      "publicId": "boundry/listings/new789"
+    }
+  ],
+  "createdBy": "507f191e810c19729de860ea",
+  "isApproved": false,
+  "createdAt": "2024-01-15T10:30:00.000Z"
+}
+```
+
+## Error Responses
+
+### Missing Required Fields (400)
+
+```json
+{
+  "message": "Please fill all required fields"
+}
+```
+
+### Listing Not Found (404)
+
+```json
+{
+  "message": "Listing not found"
+}
+```
+
+### Access Denied (403)
+
+```json
+{
+  "message": "Access denied."
+}
+```
+
+Returned when the authenticated user is not the owner or an admin.
+
+### Unauthorized (401)
+
+```json
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+
+## Implementation Details
+
+- Implemented in `controllers/listingController.js:191`
+- Route defined in `routes/listingRoutes.js:29`
+- Uses `checkOwnership` middleware to verify user is the creator or an admin
+- New images are **appended** to the existing images array (not replaced)
+- The `status` field cannot be changed through this endpoint
+- After any update, `isApproved` is set to `false` requiring admin re-approval
+- Missing fields in the request retain their previous values as fallback

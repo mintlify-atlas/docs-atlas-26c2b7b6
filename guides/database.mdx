@@ -1,0 +1,503 @@
+---
+title: Database
+description: MongoDB schema, models, and indexing strategy
+---
+
+Boundry Backend uses MongoDB with Mongoose for data persistence. This guide covers the database architecture, schemas, and optimization strategies.
+
+## Connection Setup
+
+Database connection is established on application startup:
+
+```javascript
+// From config/db.js:6-14
+const connectDb = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI, { dbName: "boundry" });
+    console.log("Successfully connected to MongoDB");
+  } catch (e) {
+    console.error("Couldn't connect to MongoDB ::", e.message);
+    process.exit(1); // Exit if connection fails
+  }
+};
+```
+
+<Info>The database name is hardcoded as `"boundry"` - it's not derived from the URI</Info>
+
+## Database Models
+
+### User Model
+
+Stores user accounts and authentication data.
+
+**Schema Definition:**
+
+```javascript
+// From models/userModel.js:3-51
+const userSchema = mongoose.Schema({
+  username: { type: String, required: true, lowercase: true },
+  email: { 
+    type: String, 
+    required: true, 
+    unique: true, 
+    lowercase: true, 
+    trim: true,
+    match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Please enter a valid email"]
+  },
+  password: { 
+    type: String, 
+    required: true, 
+    minlength: [8, "Password must be 8 characters long"] 
+  },
+  isAdmin: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+  phone: { 
+    type: String, 
+    required: true, 
+    unique: true,
+    match: [/^\+?[1-9][0-9]{7,14}$/, "Please enter a valid Phone number"],
+    trim: true 
+  },
+  avatar: {
+    url: { type: String },
+    publicId: { type: String, default: "" }
+  }
+});
+```
+
+**Indexes:**
+
+```javascript
+// From models/userModel.js:61-63
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ username: 1 }, { unique: true });
+userSchema.index({ isAdmin: 1 });
+```
+
+**Virtual Fields:**
+
+```javascript
+// From models/userModel.js:53-58
+userSchema.virtual("listings", {
+  ref: "Listing",
+  count: true,
+  localField: "_id",
+  foreignField: "owner",
+});
+```
+
+<Tip>Virtuals are computed on-the-fly and not stored in the database</Tip>
+
+### Listing Model
+
+Stores property listings with location, pricing, and image data.
+
+**Schema Definition:**
+
+```javascript
+// From models/listingModel.js:3-94
+const listingSchema = mongoose.Schema({
+  title: { type: String, required: true, trim: true },
+  description: { type: String, required: true, trim: true },
+  price: { type: Number, required: true, min: [1, "Price > 0"] },
+  location: {
+    city: { type: String, required: true, trim: true, lowercase: true },
+    area: { type: String, required: true, trim: true },
+  },
+  propertyType: {
+    type: String,
+    required: true,
+    lowercase: true,
+    enum: {
+      values: ["house", "apartment", "villa", "studio", "office"],
+      message: "{VALUE} is not a valid property type",
+    },
+  },
+  status: {
+    type: String,
+    required: true,
+    lowercase: true,
+    enum: { values: ["for-sale", "for-rent"] },
+    default: "for-sale",
+  },
+  acquiredStatus: {
+    type: String,
+    lowercase: true,
+    enum: ["sold", "rented"],
+  },
+  bedrooms: { type: Number, required: true, min: [1, "Min 1 bedroom"] },
+  bathrooms: { type: Number, required: true, min: [1, "Min 1 bathroom"] },
+  areaSqft: { type: Number, required: true },
+  images: [{
+    url: { type: String, required: true },
+    publicId: { type: String, required: true },
+  }],
+  createdBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: "User", 
+    required: true 
+  },
+  isApproved: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+});
+```
+
+**Indexes:**
+
+```javascript
+// From models/listingModel.js:96-102
+listingSchema.index({ price: 1 });
+listingSchema.index({ propertyType: 1 });
+listingSchema.index({ createdAt: -1 });
+listingSchema.index({ areaSqft: 1 });
+listingSchema.index({ status: 1 });
+listingSchema.index({ isApproved: 1 });
+listingSchema.index({ "location.city": 1 });
+```
+
+**Static Methods:**
+
+```javascript
+// From models/listingModel.js:104-106
+listingSchema.static("findByApprovedStatus", function (isApproved = true) {
+  return this.find({ isApproved });
+});
+```
+
+## Indexing Strategy
+
+### Why Indexes Matter
+
+Indexes dramatically improve query performance by avoiding full collection scans.
+
+**Without index:**
+```javascript
+// O(n) - scans entire collection
+db.listings.find({ city: "karachi" })
+```
+
+**With index:**
+```javascript
+// O(log n) - uses B-tree lookup
+db.listings.find({ city: "karachi" })
+```
+
+### User Collection Indexes
+
+<CardGroup cols={2}>
+  <Card title="Email Index" icon="at">
+    **Type:** Unique ascending
+    
+    **Purpose:** Fast login lookups, ensures email uniqueness
+    
+    **Queries:**
+    - `User.findOne({ email })`
+  </Card>
+  
+  <Card title="Username Index" icon="user">
+    **Type:** Unique ascending
+    
+    **Purpose:** Fast username lookups, ensures uniqueness
+    
+    **Queries:**
+    - `User.findOne({ username })`
+  </Card>
+  
+  <Card title="Admin Index" icon="shield">
+    **Type:** Non-unique ascending
+    
+    **Purpose:** Filter admin users efficiently
+    
+    **Queries:**
+    - `User.find({ isAdmin: true })`
+  </Card>
+</CardGroup>
+
+### Listing Collection Indexes
+
+<CardGroup cols={2}>
+  <Card title="Price Index" icon="dollar-sign">
+    **Type:** Ascending
+    
+    **Queries:**
+    - Range queries: `{ price: { $gte: min, $lte: max } }`
+    - Sorting: `sort({ price: 1 })`
+  </Card>
+  
+  <Card title="Property Type" icon="building">
+    **Type:** Ascending
+    
+    **Queries:**
+    - Exact match: `{ propertyType: "apartment" }`
+  </Card>
+  
+  <Card title="Created At" icon="clock">
+    **Type:** Descending (-1)
+    
+    **Purpose:** Latest listings first
+    
+    **Queries:**
+    - `sort({ createdAt: -1 })`
+  </Card>
+  
+  <Card title="Area (sqft)" icon="ruler">
+    **Type:** Ascending
+    
+    **Queries:**
+    - Range: `{ areaSqft: { $gte: 1000, $lte: 2000 } }`
+  </Card>
+  
+  <Card title="Status" icon="tag">
+    **Type:** Ascending
+    
+    **Queries:**
+    - `{ status: "for-sale" }`
+  </Card>
+  
+  <Card title="Is Approved" icon="check">
+    **Type:** Ascending
+    
+    **Purpose:** Critical for public vs admin queries
+    
+    **Queries:**
+    - Public: `{ isApproved: true }`
+    - Admin: `{ isApproved: false }`
+  </Card>
+  
+  <Card title="City" icon="location-dot">
+    **Type:** Ascending (nested field)
+    
+    **Queries:**
+    - `{ "location.city": "karachi" }`
+  </Card>
+</CardGroup>
+
+<Note>Indexes are created automatically when the model is first used</Note>
+
+### Compound Index Opportunities
+
+For better performance on common query patterns, consider adding compound indexes:
+
+```javascript
+// Not in current source - potential optimization
+listingSchema.index({ isApproved: 1, createdAt: -1 });
+listingSchema.index({ "location.city": 1, propertyType: 1 });
+listingSchema.index({ status: 1, price: 1 });
+```
+
+## Query Patterns
+
+### Filtering with buildQuery
+
+The `buildQuery` utility constructs MongoDB queries from HTTP query parameters:
+
+```javascript
+// From utils/buildQuery.js:1-43
+export default function buildQuery(queryParams) {
+  const query = {};
+  
+  if (queryParams.city) {
+    query["location.city"] = queryParams.city.toLowerCase();
+  }
+  
+  if (queryParams.minPrice || queryParams.maxPrice) {
+    query.price = {};
+    if (queryParams.minPrice) query.price.$gte = Number(queryParams.minPrice);
+    if (queryParams.maxPrice) query.price.$lte = Number(queryParams.maxPrice);
+  }
+  
+  if (queryParams.propertyType) {
+    query.propertyType = queryParams.propertyType.toLowerCase();
+  }
+  
+  // Similar logic for bedrooms, bathrooms, area ranges
+  
+  return query;
+}
+```
+
+**Example usage:**
+
+```javascript
+const query = buildQuery({
+  city: "Karachi",
+  minPrice: 200000,
+  maxPrice: 500000,
+  propertyType: "apartment"
+});
+
+const listings = await Listing.find(query);
+```
+
+Translates to:
+
+```javascript
+{
+  "location.city": "karachi",
+  "price": { $gte: 200000, $lte: 500000 },
+  "propertyType": "apartment"
+}
+```
+
+### Population (Joins)
+
+MongoDB doesn't have SQL joins, but Mongoose provides `.populate()` for referencing documents:
+
+```javascript
+// From controllers/listingController.js
+const listing = await Listing.findById(id).populate({
+  path: "createdBy",
+  select: "username email phone avatar",
+});
+```
+
+Fetches the listing and includes the creator's details:
+
+```json
+{
+  "_id": "...",
+  "title": "Apartment",
+  "createdBy": {
+    "_id": "...",
+    "username": "johndoe",
+    "email": "john@example.com",
+    "phone": "+123456789",
+    "avatar": { "url": "..." }
+  }
+}
+```
+
+<Warning>Population adds extra queries - use sparingly in list endpoints</Warning>
+
+## Pagination
+
+Efficient pagination for large datasets:
+
+```javascript
+const page = parseInt(req.query.page) || 1;
+const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+const skip = (page - 1) * limit;
+
+const listings = await Listing.find(query)
+  .skip(skip)
+  .limit(limit)
+  .sort({ createdAt: -1 });
+
+const total = await Listing.countDocuments(query);
+
+res.json({
+  listings,
+  currentPage: page,
+  totalPages: Math.ceil(total / limit),
+  total
+});
+```
+
+<Tip>Always set a max limit (e.g., 100) to prevent performance issues from large page sizes</Tip>
+
+## Database Maintenance
+
+### View Indexes
+
+```javascript
+// In mongo shell or Compass
+db.users.getIndexes()
+db.listings.getIndexes()
+```
+
+### Index Usage Statistics
+
+```javascript
+db.listings.aggregate([
+  { $indexStats: {} }
+])
+```
+
+### Drop Unused Indexes
+
+```javascript
+db.listings.dropIndex("index_name")
+```
+
+<Warning>Never drop indexes in production without testing query performance first</Warning>
+
+## Backup and Restore
+
+### Backup
+
+```bash
+# Backup entire database
+mongodump --uri="mongodb://localhost:27017/boundry" --out=/backup/
+
+# Backup specific collection
+mongodump --uri="mongodb://localhost:27017/boundry" --collection=listings --out=/backup/
+```
+
+### Restore
+
+```bash
+# Restore entire database
+mongorestore --uri="mongodb://localhost:27017/boundry" /backup/boundry/
+
+# Restore specific collection
+mongorestore --uri="mongodb://localhost:27017/boundry" --collection=listings /backup/boundry/listings.bson
+```
+
+## Performance Tips
+
+<CardGroup cols={2}>
+  <Card title="Use Indexes" icon="gauge-high">
+    Ensure all frequently queried fields are indexed
+  </Card>
+  
+  <Card title="Limit Fields" icon="filter">
+    Use `.select()` to return only needed fields
+    
+    ```javascript
+    User.find().select("-password")
+    ```
+  </Card>
+  
+  <Card title="Lean Queries" icon="feather">
+    Use `.lean()` for read-only operations (3x faster)
+    
+    ```javascript
+    Listing.find().lean()
+    ```
+  </Card>
+  
+  <Card title="Batch Operations" icon="layer-group">
+    Use `insertMany()`, `bulkWrite()` for multiple docs
+  </Card>
+</CardGroup>
+
+## Connection Pooling
+
+Mongoose maintains a connection pool automatically:
+
+```javascript
+// Default pool size is 5
+mongoose.connect(uri, {
+  maxPoolSize: 10, // Max 10 concurrent connections
+  minPoolSize: 2,  // Keep 2 connections always ready
+});
+```
+
+<Info>For most applications, the default pool size is sufficient</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="User Model" icon="user" href="/concepts/users">
+    Deep dive into user schema and fields
+  </Card>
+  <Card title="Listing Model" icon="building" href="/concepts/listings">
+    Explore property listing structure
+  </Card>
+  <Card title="Environment Setup" icon="gear" href="/guides/environment">
+    Configure MongoDB connection string
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Start using the API
+  </Card>
+</CardGroup>

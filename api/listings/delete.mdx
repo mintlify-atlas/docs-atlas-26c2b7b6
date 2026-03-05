@@ -1,0 +1,100 @@
+---
+title: "Delete Listing"
+api: "DELETE /api/listings/:id"
+description: "Delete a listing (requires ownership)"
+---
+
+## Overview
+
+Permanently deletes a listing. Requires authentication and ownership verification.
+
+<Warning>
+  This action is permanent and cannot be undone.
+</Warning>
+
+## Authentication
+
+**Required:** Yes (JWT token in cookies)
+
+## Authorization
+
+Only the listing creator or an admin can delete a listing. This is enforced by the `checkOwnership` middleware.
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The MongoDB ObjectId of the listing to delete
+</ParamField>
+
+## Response
+
+<ResponseField name="message" type="string">
+  Success message: "Listing successfully deleted"
+</ResponseField>
+
+## Examples
+
+### Delete a listing
+
+```bash
+curl -X DELETE https://api.boundry.app/api/listings/507f1f77bcf86cd799439011 \
+  -H "Cookie: jwt=YOUR_JWT_TOKEN"
+```
+
+### Response (200 OK)
+
+```json
+{
+  "message": "Listing successfully deleted"
+}
+```
+
+## Error Responses
+
+### Listing Not Found (404)
+
+```json
+{
+  "message": "Listing not found"
+}
+```
+
+### Access Denied (403)
+
+```json
+{
+  "message": "Access denied."
+}
+```
+
+Returned when the authenticated user is not the owner or an admin.
+
+### Unauthorized (401)
+
+```json
+{
+  "message": "Token Authentication Failed :: Token not found"
+}
+```
+
+### Deletion Failed (400)
+
+```json
+{
+  "message": "Deleting listing failed :: [error details]"
+}
+```
+
+## Implementation Details
+
+- Implemented in `controllers/listingController.js:177`
+- Route defined in `routes/listingRoutes.js:30`
+- Uses `checkOwnership` middleware which:
+  - Fetches the listing and populates `createdBy`
+  - Attaches the listing to `req.listing`
+  - Verifies the user is either the creator or an admin
+- The listing document is permanently removed using `deleteOne()`
+
+<Note>
+  Image cleanup on Cloudinary is not automatically handled by this endpoint. Consider implementing a cleanup process for associated images.
+</Note>

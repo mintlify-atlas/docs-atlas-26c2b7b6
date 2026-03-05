@@ -1,0 +1,252 @@
+---
+title: Users
+description: Understanding the user model and user management
+---
+
+Users are the foundation of the Boundry Backend system. Every user can create listings, and admins have additional moderation privileges.
+
+## User Schema
+
+The User model defines the structure and validation rules for user accounts:
+
+```javascript
+// From models/userModel.js:3-51
+const userSchema = mongoose.Schema({
+  username: {
+    type: String,
+    required: true,
+    lowercase: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, "Please enter a valid email address"],
+  },
+  password: {
+    type: String,
+    required: true,
+    minlength: [8, "Password must be 8 characters long"],
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+  phone: {
+    type: String,
+    required: true,
+    unique: true,
+    match: [/^\+?[1-9][0-9]{7,14}$/, "Please enter a valid Phone number"],
+    trim: true,
+  },
+  avatar: {
+    url: { type: String },
+    publicId: { type: String, default: "" },
+  },
+});
+```
+
+## Field Details
+
+### Core Fields
+
+<ParamField path="username" type="string" required>
+  User's display name, stored in lowercase
+</ParamField>
+
+<ParamField path="email" type="string" required>
+  Unique email address, validated with regex pattern, stored in lowercase
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  Hashed password (bcrypt), minimum 8 characters
+  
+  <Warning>Always hashed before storage - never store plaintext passwords</Warning>
+</ParamField>
+
+<ParamField path="phone" type="string" required>
+  Unique phone number in international format (E.164)
+  
+  **Valid formats:**
+  - `+1234567890` (country code + number)
+  - `+12345678901234` (up to 15 digits)
+</ParamField>
+
+### Optional Fields
+
+<ParamField path="isAdmin" type="boolean" default="false">
+  Determines admin privileges for moderation and user management
+</ParamField>
+
+<ParamField path="avatar" type="object">
+  User's profile picture
+  
+  <Expandable title="properties">
+    <ParamField path="url" type="string">
+      Cloudinary URL or auto-generated avatar URL
+    </ParamField>
+    <ParamField path="publicId" type="string" default="">
+      Cloudinary public ID for deletion/updates
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+<ParamField path="createdAt" type="Date" default="Date.now">
+  Timestamp of account creation
+</ParamField>
+
+## Virtual Fields
+
+Users have a virtual `listings` field that counts their listings:
+
+```javascript
+// From models/userModel.js:53-58
+userSchema.virtual("listings", {
+  ref: "Listing",
+  count: true,
+  localField: "_id",
+  foreignField: "owner",
+});
+```
+
+<Info>Virtual fields are computed dynamically and not stored in the database</Info>
+
+## Indexes
+
+Optimized queries with strategic indexes:
+
+```javascript
+// From models/userModel.js:61-63
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ username: 1 }, { unique: true });
+userSchema.index({ isAdmin: 1 });
+```
+
+<CardGroup cols={3}>
+  <Card title="Email Index" icon="at">
+    Unique index for fast login queries
+  </Card>
+  <Card title="Username Index" icon="user">
+    Unique index for username lookups
+  </Card>
+  <Card title="Admin Index" icon="shield">
+    Fast filtering for admin dashboards
+  </Card>
+</CardGroup>
+
+## User Roles
+
+### Regular User
+
+Default role for all registered users.
+
+**Permissions:**
+- Create, update, delete **own** listings
+- View all approved listings
+- Update own profile
+- View public profiles of other users
+
+### Admin User
+
+Elevated privileges for platform moderation.
+
+**Additional Permissions:**
+- Approve/reject any listing
+- Delete any listing
+- View all users
+- Change user admin status
+- Delete any user account
+
+<Warning>Admin status is controlled via the `isAdmin` boolean field</Warning>
+
+## Auto-Generated Avatars
+
+During registration, if no avatar is provided, an auto-generated avatar is created:
+
+```javascript
+// From controllers/authController.js:24
+const avatarUrl = `https://avatar.iran.liara.run/public/boy?username=${username.split(" ").join("+")}`;
+```
+
+## Password Security
+
+Passwords are hashed using bcrypt before storage:
+
+```javascript
+// From utils/bcrypt.js
+import bcrypt from "bcryptjs";
+
+export const hashPassword = async (password) => {
+  const salt = await bcrypt.genSalt(10);
+  return await bcrypt.hash(password, salt);
+};
+
+export const comparePassword = async (password, hashedPassword) => {
+  return await bcrypt.compare(password, hashedPassword);
+};
+```
+
+<Tip>Passwords are never returned in API responses - the `.select("-password")` modifier excludes them</Tip>
+
+## JSON Serialization
+
+Virtual fields are included in JSON responses:
+
+```javascript
+// From models/userModel.js:66-67
+userSchema.set("toJSON", { virtuals: true });
+userSchema.set("toObject", { virtuals: true });
+```
+
+## Validation Rules Summary
+
+| Field | Rule | Error Message |
+|-------|------|---------------|
+| email | Regex pattern | "Please enter a valid email address" |
+| password | min length 8 | "Password must be 8 characters long" |
+| phone | E.164 format | "Please enter a valid Phone number" |
+| email | unique | Duplicate key error |
+| phone | unique | Duplicate key error |
+
+## Example User Object
+
+```json
+{
+  "_id": "65f1a2b3c4d5e6f7a8b9c0d1",
+  "username": "johndoe",
+  "email": "john@example.com",
+  "phone": "+1234567890",
+  "isAdmin": false,
+  "avatar": {
+    "url": "https://avatar.iran.liara.run/public/boy?username=johndoe",
+    "publicId": ""
+  },
+  "createdAt": "2024-03-15T10:30:00.000Z",
+  "listings": 5
+}
+```
+
+<Note>The `password` field is always excluded from responses</Note>
+
+## Related Endpoints
+
+<CardGroup cols={2}>
+  <Card title="Register User" icon="user-plus" href="/api/auth/register">
+    Create a new user account
+  </Card>
+  <Card title="Get Profile" icon="id-card" href="/api/users/get-profile">
+    Retrieve authenticated user's profile
+  </Card>
+  <Card title="Update Profile" icon="pen-to-square" href="/api/users/update-profile">
+    Modify user profile information
+  </Card>
+  <Card title="Admin User Management" icon="users-gear" href="/api/admin/get-users">
+    Admin endpoints for user management
+  </Card>
+</CardGroup>
