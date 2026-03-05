@@ -199,31 +199,31 @@ Fetches all approved listings that are visible to the public. Supports advanced 
 ### Get all listings (default pagination)
 
 ```bash
-curl https://api.boundry.app/api/listings
+curl http://localhost:5000/api/listings
 ```
 
 ### Search for apartments in Dubai
 
 ```bash
-curl "https://api.boundry.app/api/listings?city=dubai&propertyType=apartment"
+curl "http://localhost:5000/api/listings?city=dubai&propertyType=apartment"
 ```
 
 ### Filter by price range with pagination
 
 ```bash
-curl "https://api.boundry.app/api/listings?minPrice=500000&maxPrice=1000000&page=1&limit=20"
+curl "http://localhost:5000/api/listings?minPrice=500000&maxPrice=1000000&page=1&limit=20"
 ```
 
 ### Sort by price (lowest first)
 
 ```bash
-curl "https://api.boundry.app/api/listings?sortBy=price&sortOrder=asc"
+curl "http://localhost:5000/api/listings?sortBy=price&sortOrder=asc"
 ```
 
 ### Complex query with multiple filters
 
 ```bash
-curl "https://api.boundry.app/api/listings?city=dubai&propertyType=villa&bedrooms=4&bathrooms=3&minPrice=1000000&maxPrice=2000000&sortBy=price&sortOrder=asc&page=1&limit=10"
+curl "http://localhost:5000/api/listings?city=dubai&propertyType=villa&bedrooms=4&bathrooms=3&minPrice=1000000&maxPrice=2000000&sortBy=price&sortOrder=asc&page=1&limit=10"
 ```
 
 ## Implementation Details

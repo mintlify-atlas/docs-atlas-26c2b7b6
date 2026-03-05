@@ -59,7 +59,7 @@ If `acquiredStatus` is not provided in the request:
 ### Auto-toggle: Mark a for-sale listing as sold
 
 ```bash
-curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011/acquired-status \
+curl -X PATCH http://localhost:5000/api/listings/507f1f77bcf86cd799439011/acquired-status \
   -H "Cookie: jwt=YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{}'
@@ -100,7 +100,7 @@ curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011/acqu
 ### Explicitly set status to rented
 
 ```bash
-curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439012/acquired-status \
+curl -X PATCH http://localhost:5000/api/listings/507f1f77bcf86cd799439012/acquired-status \
   -H "Cookie: jwt=YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"acquiredStatus": "rented"}'
@@ -109,7 +109,7 @@ curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439012/acqu
 ### Revert to available (set to null)
 
 ```bash
-curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011/acquired-status \
+curl -X PATCH http://localhost:5000/api/listings/507f1f77bcf86cd799439011/acquired-status \
   -H "Cookie: jwt=YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"acquiredStatus": null}'

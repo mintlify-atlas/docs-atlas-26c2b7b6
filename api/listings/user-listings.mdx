@@ -119,28 +119,28 @@ The `createdBy` filter is automatically set from the authenticated user.
 ### Get all user's listings
 
 ```bash
-curl https://api.boundry.app/api/listings/my-listings \
+curl http://localhost:5000/api/listings/my-listings \
   -H "Cookie: jwt=YOUR_JWT_TOKEN"
 ```
 
 ### Get only pending listings
 
 ```bash
-curl "https://api.boundry.app/api/listings/my-listings?status=pending" \
+curl "http://localhost:5000/api/listings/my-listings?status=pending" \
   -H "Cookie: jwt=YOUR_JWT_TOKEN"
 ```
 
 ### Get active listings with search
 
 ```bash
-curl "https://api.boundry.app/api/listings/my-listings?status=active&search=villa" \
+curl "http://localhost:5000/api/listings/my-listings?status=active&search=villa" \
   -H "Cookie: jwt=YOUR_JWT_TOKEN"
 ```
 
 ### Get sold/rented listings
 
 ```bash
-curl "https://api.boundry.app/api/listings/my-listings?status=sold" \
+curl "http://localhost:5000/api/listings/my-listings?status=sold" \
   -H "Cookie: jwt=YOUR_JWT_TOKEN"
 ```
 

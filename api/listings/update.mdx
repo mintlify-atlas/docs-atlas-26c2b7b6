@@ -155,7 +155,7 @@ All fields from the original listing must be provided, even if not changed.
 ### Update listing details
 
 ```bash
-curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011 \
+curl -X PATCH http://localhost:5000/api/listings/507f1f77bcf86cd799439011 \
   -H "Cookie: jwt=YOUR_JWT_TOKEN" \
   -F "title=Updated Luxury Villa" \
   -F "description=Newly renovated with modern amenities" \
@@ -171,7 +171,7 @@ curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011 \
 ### Update with additional images
 
 ```bash
-curl -X PATCH https://api.boundry.app/api/listings/507f1f77bcf86cd799439011 \
+curl -X PATCH http://localhost:5000/api/listings/507f1f77bcf86cd799439011 \
   -H "Cookie: jwt=YOUR_JWT_TOKEN" \
   -F "title=Updated Luxury Villa" \
   -F "description=Newly renovated with modern amenities" \
